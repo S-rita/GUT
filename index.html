@@ -4,18 +4,65 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <style>
+
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        #game-container {
+            margin: auto;
+            position: relative;
+        }
+
+        #restart {
+            position: absolute; 
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 540px;
+            background-color:  rgba(0, 0, 0, 0.6);;
+            display: none;
+            
+        }
+
         canvas {
+            display: flex;
             border: 1px solid #d3d3d3;
             background-color: #f1f1f1;
         }
+
+        button {
+            background-color: transparent;
+            background-repeat: no-repeat;
+            border: none;
+            cursor: pointer;
+            overflow: hidden;
+            outline: none;
+        }
+
+        .restart-button {
+            width: 100px;
+            height: 100px;
+        }
+
     </style>
     <script src="main.js"></script>
 </head>
 <body onload="startGame()">
-    <br>
-    <img id="car" src="assets/car.svg">
-    <p>Use the ACCELERATE button to stay in the air</p>
-    <p>How long can you stay alive?</p>
+    <div id="game-container">
+        <div id="restart">
+            <button onclick="startGame()" style="margin: auto; opacity: 1;">
+                <img src="./assets/interface/restart.png" class="restart-button">
+            </button>
+        </div>
+    </div>
+
 </body>
 
 </html>
