@@ -20,6 +20,10 @@ var myScore;
 var distance = 0;
 var curvature = 0;
 var middlePoint = 0;
+const controls = {
+    left: false,
+    right: false
+}
 
 function startGame() {
     myGamePiece = new component(30, 30, "red", 270, 540);
@@ -120,7 +124,7 @@ function updateGameArea() {
         x = myGameArea.canvas.width;
         y = myGameArea.canvas.height;
         distance += 10;
-        draw(myGameArea.canvas, distance)
+        draw(myGameArea.canvas)
     }
     for (i = 0; i < trackLines.length; i++) {
         trackLines[i].update();
@@ -131,6 +135,14 @@ function updateGameArea() {
         console.log("middle point out", middlePoint);
         myObstacles[i].x = middlePoint;
         myObstacles[i].update();
+    }
+
+    // player movement
+    if (controls.left) {
+        myGamePiece.move(-5);
+    }
+    if (controls.right) {
+        myGamePiece.move(5);
     }
 
     myScore.text="SCORE: " + myGameArea.frameNo;
@@ -186,12 +198,16 @@ function draw(canvas) {
     if (distance > offset) distance = 0;
 }
 
-document.addEventListener("keypress", function(event) {
-  if (event.keyCode == 97) {
-    myGamePiece.move(-5)
-  } else if (event.keyCode == 100) {
-    myGamePiece.move(5)
-  }
+
+document.addEventListener('keydown', e => {
+    if (e.code === 'KeyA') controls.left = true;
+    if (e.code === 'KeyD') controls.right = true;
+    console.log(controls);
+});
+
+document.addEventListener('keyup', e => {
+    if (e.code === 'KeyA') controls.left = false;
+    if (e.code === 'KeyD') controls.right = false;
 });
 
 </script>
