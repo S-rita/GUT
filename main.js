@@ -1,187 +1,214 @@
+const canvas_width = 1000;
+const canvas_height = 540;
+
 var myGamePiece;
 var myObstacles = [];
-var trackLines = []
+var trackLines = [];
 var track = [];
-var myScore;
+var scoreboard;
+var score = 0;
 var distance = 0;
 var middlePoint = 0;
 const controls = {
-    left: false,
-    right: false
-}
+  left: false,
+  right: false,
+};
 
 function startGame() {
-    myGamePiece = new component(30, 30, "red", 270, 540);
-    myGamePiece.gravity = 0.05;
-    myScore = new component("30px", "Consolas", "black", 280, 40, "text");
-    track.push([0, 100]);
-    track.push([1, 500]);
-    track.push([0, 1000]);
-    track.push([-2, 500]);
-    track.push([0, 2000]);
-    track.push([1, 500]);
-    myGameArea.start();
+  myGamePiece = new component(30, 30, "red", 270, 540);
+  scoreboard = new component("30px", "Consolas", "black", 280, 40, "text");
+  // track.push([0, 100]);
+  // track.push([1, 500]);
+  // track.push([0, 1000]);
+  // track.push([-2, 500]);
+  // track.push([0, 2000]);
+  track.push([1, 500]);
+  myGameArea.start();
 }
 
 var myGameArea = {
-    canvas: document.createElement("canvas"),
-    start: function () {
-        this.canvas.width = 540;
-        this.canvas.height = 540;
-        this.context = this.canvas.getContext("2d");
-        document.body.insertBefore(this.canvas, document.body.childNodes[0]);
-        this.frameNo = 0;
-        this.interval = setInterval(updateGameArea, 10);
-    },
-    clear: function () {
-        this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    }
-}
+  canvas: document.createElement("canvas"),
+  start: function () {
+    this.canvas.width = canvas_width;
+    this.canvas.height = canvas_height;
+    this.context = this.canvas.getContext("2d");
+    document.body.insertBefore(this.canvas, document.body.childNodes[0]);
+    this.frameNo = 0;
+    this.interval = setInterval(updateGameArea, 10);
+  },
+  clear: function () {
+    this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+  },
+};
 
 function component(width, height, color, x, y, type) {
-    this.type = type;
-    this.score = 0;
-    this.width = width;
-    this.height = height;
-    this.speedX = 0;
-    this.speedY = 0;
-    this.x = x;
-    this.y = y;
-    this.gravity = 0;
-    this.gravitySpeed = 0;
-    this.update = function () {
-        ctx = myGameArea.context;
-        if (this.type == "text") {
-            ctx.font = this.width + " " + this.height;
-            ctx.fillStyle = color;
-            ctx.fillText(this.text, this.x, this.y);
-        } else {
-            ctx.fillStyle = color;
-            ctx.fillRect(this.x, this.y, this.width, this.height);
-        }
+  this.type = type;
+  this.score = 0;
+  this.width = width;
+  this.height = height;
+  this.speedX = 0;
+  this.speedY = 0;
+  this.x = x;
+  this.y = y;
+  this.gravity = 0;
+  this.gravitySpeed = 0;
+  this.update = function () {
+    ctx = myGameArea.context;
+    if (this.type == "text") {
+      ctx.font = this.width + " " + this.height;
+      ctx.fillStyle = color;
+      ctx.fillText(this.text, this.x, this.y);
+    } else {
+      ctx.fillStyle = color;
+      ctx.fillRect(this.x, this.y, this.width, this.height);
     }
-    this.newPos = function () {
-        this.gravitySpeed += this.gravity;
-        this.x += this.speedX;
-        this.y += this.speedY + this.gravitySpeed;
-        this.hitBottom();
+  };
+  this.newPos = function () {
+    this.x += this.speedX;
+    this.hitBottom();
+  };
+  this.hitBottom = function () {
+    var rockbottom = myGameArea.canvas.height - this.height;
+    if (this.y > rockbottom) {
+      this.y = rockbottom;
+      this.gravitySpeed = 0;
     }
-    this.hitBottom = function () {
-        var rockbottom = myGameArea.canvas.height - this.height;
-        if (this.y > rockbottom) {
-            this.y = rockbottom;
-            this.gravitySpeed = 0;
-        }
-    }
-    this.move = function (n) {
-        this.x += n;
-    }
-    // this.crashWith = function(otherobj) {
-    //     var myleft = this.x;
-    //     var myright = this.x + (this.width);
-    //     var mytop = this.y;
-    //     var mybottom = this.y + (this.height);
-    //     var otherleft = otherobj.x;
-    //     var otherright = otherobj.x + (otherobj.width);
-    //     var othertop = otherobj.y;
-    //     var otherbottom = otherobj.y + (otherobj.height);
-    //     var crash = true;
-    //     if ((mybottom < othertop) || (mytop > otherbottom) || (myright < otherleft) || (myleft > otherright)) {
-    //         crash = false;
-    //     }
-    //     return crash;
-    // }
+  };
+  this.move = function (n) {
+    this.x += n;
+  };
+  // this.crashWith = function(otherobj) {
+  //     var myleft = this.x;
+  //     var myright = this.x + (this.width);
+  //     var mytop = this.y;
+  //     var mybottom = this.y + (this.height);
+  //     var otherleft = otherobj.x;
+  //     var otherright = otherobj.x + (otherobj.width);
+  //     var othertop = otherobj.y;
+  //     var otherbottom = otherobj.y + (otherobj.height);
+  //     var crash = true;
+  //     if ((mybottom < othertop) || (mytop > otherbottom) || (myright < otherleft) || (myleft > otherright)) {
+  //         crash = false;
+  //     }
+  //     return crash;
+  // }
 }
 
 function updateGameArea() {
-    var x, height, gap, minHeight, maxHeight, minGap, maxGap;
-    // for (i = 0; i < myObstacles.length; i += 1) {
-    //     if (myGamePiece.crashWith(myObstacles[i])) {
-    //         return;
-    //     } 
-    // }
-    myGameArea.clear();
-    myGameArea.frameNo += 1;
-    // if (everyinterval(100)) {
-    //     myObstacles.push(new component(30, 30, "red", 270, 270))
-    // }
-    if (myGameArea.frameNo == 1 || everyinterval(10)) {
-        x = myGameArea.canvas.width;
-        y = myGameArea.canvas.height;
-        distance += 10;
-        draw(myGameArea.canvas)
-    }
-    for (i = 0; i < trackLines.length; i++) {
-        trackLines[i].update();
-    }
+  var x, height, gap, minHeight, maxHeight, minGap, maxGap;
+  // for (i = 0; i < myObstacles.length; i += 1) {
+  //     if (myGamePiece.crashWith(myObstacles[i])) {
+  //         return;
+  //     }
+  // }
+  myGameArea.clear();
+  myGameArea.frameNo += 1;
+  // if (everyinterval(100)) {
+  //     myObstacles.push(new component(30, 30, "red", 270, 270))
+  // }
+  if (everyinterval(100)) {
+    score += 1;
+  }
+  if (myGameArea.frameNo == 1 || everyinterval(10)) {
+    x = myGameArea.canvas.width;
+    y = myGameArea.canvas.height;
+    distance += 10;
+    draw(myGameArea.canvas);
+  }
+  for (i = 0; i < trackLines.length; i++) {
+    trackLines[i].update();
+  }
 
-    for (i = 0; i < myObstacles.length; i++) {
-        myObstacles[i].y += 1;
-        console.log("middle point out", middlePoint);
-        myObstacles[i].x = middlePoint;
-        myObstacles[i].update();
-    }
+  for (i = 0; i < myObstacles.length; i++) {
+    myObstacles[i].y += 1;
+    console.log("middle point out", middlePoint);
+    myObstacles[i].x = middlePoint;
+    myObstacles[i].update();
+  }
 
-    // player movement
-    if (controls.left) {
-        myGamePiece.move(-5);
-    }
-    if (controls.right) {
-        myGamePiece.move(5);
-    }
+  // player movement
+  if (controls.left) {
+    myGamePiece.move(-5);
+  }
+  if (controls.right) {
+    myGamePiece.move(5);
+  }
 
-    myScore.text="SCORE: " + myGameArea.frameNo;
-    myScore.update();
-    myGamePiece.newPos();
-    myGamePiece.update();
+  scoreboard.text = "SCORE: " + score;
+  scoreboard.update();
+  myGamePiece.newPos();
+  // myGamePiece.update();
+  myGameArea.canvas
+    .getContext("2d")
+    .drawImage(
+      document.getElementById("car"),
+      myGamePiece.x,
+      myGamePiece.y - 150,
+      150,
+      150
+    );
 }
 
 function everyinterval(n) {
-    if ((myGameArea.frameNo / n) % 1 == 0) { return true; }
-    return false;
+  if ((myGameArea.frameNo / n) % 1 == 0) {
+    return true;
+  }
+  return false;
 }
 
 function accelerate(n) {
-    myGamePiece.gravity = n;
+  myGamePiece.gravity = n;
 }
 
 function draw(canvas) {
-    x = canvas.width;
-    y = canvas.height;
+  x = canvas.width;
+  y = canvas.height;
 
-    offset = 0;
-    trackNumber = 0;
+  offset = 0;
+  trackNumber = 0;
 
-    while (trackNumber < track.length && offset <= distance) {
-        offset += track[trackNumber][1];
-        trackNumber++;
-    }
+  while (trackNumber < track.length && offset <= distance) {
+    offset += track[trackNumber][1];
+    trackNumber++;
+  }
 
-    for (j = 0; j < y / 2; j += 5) {
+  for (j = 0; j < y / 2; j += 5) {
+    perspective = j / (y / 2);
+    middlePoint = x / 2;
 
-        perspective = j / (y / 2);
-        middlePoint = x / 2;
+    gap = 250 * perspective + 100;
 
-        gap = 250 * perspective + 100;
+    color =
+      Math.sin(20 * Math.pow(1 - perspective, 3) + distance * 0.1) > 0
+        ? "green"
+        : "darkgreen";
+    trackLines.push(
+      new component(middlePoint - gap / 2, 5, color, 0, y / 2 + j)
+    );
+    trackLines.push(
+      new component(
+        x - middlePoint + gap / 2,
+        5,
+        color,
+        middlePoint + gap / 2,
+        y / 2 + j
+      )
+    );
+  }
+  while (trackLines.length > y / 5) {
+    trackLines.shift();
+  }
 
-        color = Math.sin(20 * Math.pow(1 - perspective, 3) + distance * 0.1) > 0 ? "green" : "darkgreen";
-        trackLines.push(new component(middlePoint - gap / 2, 5, color, 0, y / 2 + j));
-        trackLines.push(new component(x - middlePoint + gap / 2, 5, color, middlePoint + gap / 2, y / 2 + j));
-    }
-    while (trackLines.length > y / 5) {
-        trackLines.shift();
-    }
-
-    if (distance > offset) distance = 0;
+  if (distance > offset) distance = 0;
 }
 
-document.addEventListener('keydown', e => {
-    if (e.code === 'KeyA') controls.left = true;
-    if (e.code === 'KeyD') controls.right = true;
-    console.log(controls);
+document.addEventListener("keydown", (e) => {
+  if (e.code === "KeyA") controls.left = true;
+  if (e.code === "KeyD") controls.right = true;
+  console.log(controls);
 });
 
-document.addEventListener('keyup', e => {
-    if (e.code === 'KeyA') controls.left = false;
-    if (e.code === 'KeyD') controls.right = false;
+document.addEventListener("keyup", (e) => {
+  if (e.code === "KeyA") controls.left = false;
+  if (e.code === "KeyD") controls.right = false;
 });
