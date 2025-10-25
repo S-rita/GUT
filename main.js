@@ -1,5 +1,6 @@
 const canvas_width = 960;
-const canvas_height = 700;
+const canvas_height = 540;
+const CAR_W = 120, CAR_H = 100;
 
 var playerCar;
 var myObstacles = [];
@@ -19,16 +20,27 @@ const controls = {
 
 
 function startGame() {
-  myGamePiece = new component(30, 30, "red", canvas_width / 2 - 100, 540);
+  playerCar = new component(CAR_W, CAR_H, null, canvas_width / 2, 480, "image");
+  playerCar.imageId = "car";
+
   scoreboard = new component("30px", "Consolas", "black", 280, 40, "text");
   sky = new component(canvas_width, canvas_height / 2, "lightblue", 0, 0);
-  
 
-  track.push([0, 100]);
+  document.getElementById("restart").style.display = "none";
+  
+  myObstacles = [];
+  trackLines  = [];
+  track       = [];
+  score       = 0;
+  distance    = 0;
+  curvature   = 0;
+  myGameArea.frameNo = 0;
+  
+  track.push([0, 1000]);
   track.push([1, 500]);
   track.push([0, 1000]);
   track.push([-2, 500]);
-  track.push([0, 2000]);
+  track.push([0, 3000]);
   track.push([1, 500]);
   myGameArea.start();
 }
@@ -39,7 +51,7 @@ var myGameArea = {
     this.canvas.width = canvas_width;
     this.canvas.height = canvas_height;
     this.context = this.canvas.getContext("2d");
-    document.body.insertBefore(this.canvas, document.body.childNodes[0]);
+    document.getElementById("game-container").prepend(this.canvas);
     this.frameNo = 0;
     this.interval = setInterval(updateGameArea, 10);
   },
@@ -48,7 +60,7 @@ var myGameArea = {
   },
 };
 
-function component(width, height, color, x, y, type = null, spawnOffset=0, laneOffset=0) {
+function component(width, height, color, x, y, type = null, spawnOffset = 0, laneOffset = 0) {
   this.type = type;
   this.score = 0;
   this.width = width;
@@ -56,57 +68,73 @@ function component(width, height, color, x, y, type = null, spawnOffset=0, laneO
   this.spawnOffset = spawnOffset;
   this.laneOffset = laneOffset;
   this.speedX = 0;
-  this.speedY = 0;    
+  this.speedY = 0;
   this.x = x;
   this.y = y;
-  this.update = function() {
-      ctx = myGameArea.context;
-      if (this.type == "text") {
-          ctx.font = this.width + " " + this.height;
-          ctx.fillStyle = color;
-          ctx.fillText(this.text, this.x, this.y);
-      } else {
-          ctx.fillStyle = color;
-          ctx.fillRect(this.x, this.y, this.width, this.height);
-      }
+  this.imageId = null;     // ← add this
+  this.update = function () {
+    const ctx = myGameArea.context;
+    if (this.type === "text") {
+      ctx.font = this.width + " " + this.height;
+      ctx.fillStyle = color;
+      ctx.fillText(this.text || "", this.x, this.y);
+    } else if (this.type === "image" && this.imageId) {
+      const img = document.getElementById(this.imageId);
+      ctx.drawImage(img, this.x - this.width / 2, this.y - this.height / 2, this.width, this.height);
+    } else {
+      ctx.fillStyle = color;
+      ctx.fillRect(this.x, this.y, this.width, this.height);
+    }
+  };
+
+  this.newPos = function () {
+    this.x += this.speedX;
+    this.y += this.speedY;
+    this.hitBottom();
+  };
+
+  this.hitBottom = function () {
+    const rockbottom = myGameArea.canvas.height - this.height;
+    if (this.y > rockbottom) this.y = rockbottom;
+  };
+
+  this.move = function (n) { 
+    this.x += n; 
+  };
+
+  this.crashWith = function(otherobj) {
+    const margin = 30;
+
+    var myleft = this.x + margin;
+    var myright = this.x + (this.width);
+    var mytop = this.y + margin;
+    var mybottom = this.y + (this.height);
+    var otherleft = otherobj.x + margin;
+    var otherright = otherobj.x + (otherobj.width);
+    var othertop = otherobj.y + margin;
+    var otherbottom = otherobj.y + (otherobj.height);
+    var crash = true;
+    if ((mybottom < othertop) || (mytop > otherbottom) || (myright < otherleft) || (myleft > otherright)) {
+        crash = false;
+    }
+    return crash;
   }
-  this.newPos = function() {
-      this.x += this.speedX;
-      this.y += this.speedY;
-      this.hitBottom();
-  }
-  this.hitBottom = function() {
-      var rockbottom = myGameArea.canvas.height - this.height;
-      if (this.y > rockbottom) {
-          this.y = rockbottom;
-      }
-  }
-  this.move = function(n) {
-      this.x += n;
-  } 
-  // this.crashWith = function(otherobj) {
-  //     var myleft = this.x;
-  //     var myright = this.x + (this.width);
-  //     var mytop = this.y;
-  //     var mybottom = this.y + (this.height);
-  //     var otherleft = otherobj.x;
-  //     var otherright = otherobj.x + (otherobj.width);
-  //     var othertop = otherobj.y;
-  //     var otherbottom = otherobj.y + (otherobj.height);
-  //     var crash = true;
-  //     if ((mybottom < othertop) || (mytop > otherbottom) || (myright < otherleft) || (myleft > otherright)) {
-  //         crash = false;
-  //     }
-  //     return crash;
-  // }
+}
+
+function gameOver() {
+  if (myGameArea.interval) clearInterval(myGameArea.interval);
+
+  const overlay = document.getElementById("restart");
+  overlay.style.display = "flex";
 }
 
 function updateGameArea() {
-  // for (i = 0; i < myObstacles.length; i += 1) {
-  //     if (myGamePiece.crashWith(myObstacles[i])) {
-  //         return;
-  //     } 
-  // }
+  for (i = 0; i < myObstacles.length; i += 1) {
+      if (playerCar.crashWith(myObstacles[i])) {
+        gameOver();
+        return;
+      } 
+  }
 
   myGameArea.clear();
   myGameArea.frameNo += 1;
@@ -124,46 +152,49 @@ function updateGameArea() {
 
   if (everyinterval(200)) {
     score += 1;
-    myObstacles.push(new component(30, 30, "red", 270, canvas_height / 2, "obstacle", -50, -300))
+    
+    const lane = (Math.random() * 2 - 1);
+
+    const obs = new component(CAR_W, CAR_H, null, 270, canvas_height / 2, "image", -50 * lane, -300 * lane);
+    obs.imageId = "car";
+    myObstacles.push(obs);
   }
 
   for (let i = 0; i < myObstacles.length; i++) {
-      half_height = canvas_height / 2;
-      let perspective = (myObstacles[i].y - half_height) / half_height;
-      
-      const middlePointObs = canvas_width / 2 + myObstacles[i].spawnOffset + curvature * 500 * Math.pow(1 - perspective, 2);
+    half_height = canvas_height / 2;
+    let perspective = (myObstacles[i].y - half_height) / half_height;
+    
+    const middlePointObs = canvas_width / 2 + myObstacles[i].spawnOffset + curvature * 500 * Math.pow(1 - perspective, 2);
 
-      myObstacles[i].y += speed * 0.1;
-      const laneDrift = myObstacles[i].laneOffset * (perspective);
-      
-      myObstacles[i].x = middlePointObs + laneDrift;
+    scaleSpeed = 0.1 + score / 100;
+    myObstacles[i].y += speed * scaleSpeed;
+    const laneDrift = myObstacles[i].laneOffset * (perspective);
+    
+    myObstacles[i].x = middlePointObs + laneDrift;
 
-      myObstacles[i].update();
+    scale = 0.2 + 1 * perspective;
+    myObstacles[i].width  = CAR_W * scale;
+    myObstacles[i].height = CAR_H * scale;
+
+    myObstacles[i].update();
   }
 
-  // player movement
-  if (controls.left) {
-    myGamePiece.move(-5);
-  }
-  if (controls.right) {
-    myGamePiece.move(5);
+  playerCar.imageId = "car";
+  
+  if (controls.left && playerCar.x > 70) {
+    playerCar.move(-5);
+    playerCar.imageId = "car-right";
   }
 
+  if (controls.right && playerCar.x < canvas_width - 70) {
+    playerCar.move(5);
+    playerCar.imageId = "car-left";
+  }
 
   scoreboard.text = "SCORE: " + score;
-  scoreboard.update();
-  
-  myGamePiece.newPos();
 
-  myGameArea.canvas
-    .getContext("2d")
-    .drawImage(
-      document.getElementById("car"),
-      myGamePiece.x,
-      540,
-      200,
-      125
-    );
+  scoreboard.update();
+  playerCar.update();
 }
 
 function everyinterval(n) {
@@ -174,7 +205,7 @@ function everyinterval(n) {
 }
 
 function accelerate(n) {
-  myGamePiece.gravity = n;
+  playerCar.gravity = n;
 }
 
 function draw() {
