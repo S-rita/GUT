@@ -1,7 +1,7 @@
 const canvas_width = 960;
 const canvas_height = 700;
 
-var myGamePiece;
+var playerCar;
 var myObstacles = [];
 var trackLines = [];
 var track = [];
@@ -19,8 +19,11 @@ const controls = {
 
 
 function startGame() {
-  myGamePiece = new component(30, 30, "red", 270, 540);
+  myGamePiece = new component(30, 30, "red", canvas_width / 2 - 100, 540);
   scoreboard = new component("30px", "Consolas", "black", 280, 40, "text");
+  sky = new component(canvas_width, canvas_height / 2, "lightblue", 0, 0);
+  
+
   track.push([0, 100]);
   track.push([1, 500]);
   track.push([0, 1000]);
@@ -45,7 +48,8 @@ var myGameArea = {
   },
 };
 
-function component(width, height, color, x, y, spawnOffset=0, laneOffset=0) {
+function component(width, height, color, x, y, type = null, spawnOffset=0, laneOffset=0) {
+  this.type = type;
   this.score = 0;
   this.width = width;
   this.height = height;
@@ -98,46 +102,44 @@ function component(width, height, color, x, y, spawnOffset=0, laneOffset=0) {
 }
 
 function updateGameArea() {
-    // for (i = 0; i < myObstacles.length; i += 1) {
-    //     if (myGamePiece.crashWith(myObstacles[i])) {
-    //         return;
-    //     } 
-    // }
+  // for (i = 0; i < myObstacles.length; i += 1) {
+  //     if (myGamePiece.crashWith(myObstacles[i])) {
+  //         return;
+  //     } 
+  // }
 
-    myGameArea.clear();
-    myGameArea.frameNo += 1;
+  myGameArea.clear();
+  myGameArea.frameNo += 1;
+  
+  sky.update();
 
-    canvasHeight = myGameArea.canvas.height;
-    canvasWidth = myGameArea.canvas.width;
+  if (myGameArea.frameNo == 1 || everyinterval(5)) {
+    distance += speed;
+    draw()
+  }
+  
+  for (i = 0; i < trackLines.length; i++) {
+    trackLines[i].update();
+  }
 
-    if (myGameArea.frameNo == 1 || everyinterval(5)) {
-        x = myGameArea.canvas.width;
-        y = myGameArea.canvas.height;
-        distance += speed;
-        draw(myGameArea.canvas)
-    }
-    for (i = 0; i < trackLines.length; i++) {
-        trackLines[i].update();
-    }
+  if (everyinterval(200)) {
+    score += 1;
+    myObstacles.push(new component(30, 30, "red", 270, canvas_height / 2, "obstacle", -50, -300))
+  }
 
-    if (everyinterval(200)) {
-        myObstacles.push(new component(30, 30, "red", 270, 240, 0, 0))
-    }
+  for (let i = 0; i < myObstacles.length; i++) {
+      half_height = canvas_height / 2;
+      let perspective = (myObstacles[i].y - half_height) / half_height;
+      
+      const middlePointObs = canvas_width / 2 + myObstacles[i].spawnOffset + curvature * 500 * Math.pow(1 - perspective, 2);
 
-    console.log("curve", curvature);
-    for (let i = 0; i < myObstacles.length; i++) {
-        const halfH = canvasHeight / 2;
-        let perspective = (myObstacles[i].y - halfH) / halfH;
-        
-        const middlePointObs = canvasWidth / 2 + myObstacles[i].spawnOffset + curvature * 500 * Math.pow(1 - perspective, 2);
+      myObstacles[i].y += speed * 0.1;
+      const laneDrift = myObstacles[i].laneOffset * (perspective);
+      
+      myObstacles[i].x = middlePointObs + laneDrift;
 
-        myObstacles[i].y += speed * 0.1;
-        const laneDrift = myObstacles[i].laneOffset * (perspective);
-        
-        myObstacles[i].x = middlePointObs + laneDrift;
-
-        myObstacles[i].update();
-    }
+      myObstacles[i].update();
+  }
 
   // player movement
   if (controls.left) {
@@ -147,18 +149,20 @@ function updateGameArea() {
     myGamePiece.move(5);
   }
 
+
   scoreboard.text = "SCORE: " + score;
   scoreboard.update();
+  
   myGamePiece.newPos();
-  // myGamePiece.update();
+
   myGameArea.canvas
     .getContext("2d")
     .drawImage(
       document.getElementById("car"),
       myGamePiece.x,
-      530,
+      540,
       200,
-      150
+      125
     );
 }
 
@@ -173,10 +177,8 @@ function accelerate(n) {
   myGamePiece.gravity = n;
 }
 
-function draw(canvas) {
-    x = canvas.width;
-    y = canvas.height;
-    
+function draw() {
+
     offset = 0;
     trackNumber = 0;
 
@@ -190,22 +192,40 @@ function draw(canvas) {
     trackCurveDiff = (targetCurvature - curvature) * 0.01;
     curvature += trackCurveDiff;
 
-    for (j = 0; j < y / 2; j+=5) {
+    for (j = 0; j < canvas_height / 2; j+=5) {
+      
+      rowY = canvas_height / 2 + j;
+      perspective = j / (canvas_height / 2);
+      middlePoint = canvas_width / 2 + curvature * 500 * Math.pow((1 - perspective), 2);
+  
+      gap = canvas_width * perspective + 200;
 
-        perspective = j / (y / 2);
-        middlePoint = x / 2 + curvature * 500 * Math.pow((1 - perspective), 2);
-    
-        gap = canvas_width * perspective + 300;
+      if (j == 0) {
+          middleValue = middlePoint;
+      }
 
-        if (j == 0) {
-            middleValue = middlePoint;
-        }
+      grass_color = Math.sin(20 * Math.pow(1 - perspective, 3) + distance * 0.1) > 0 ? "green" : "darkgreen";
+      line_color = Math.sin(50 * Math.pow(1 - perspective, 3) + distance * 0.1) > 0 ? "red" : "white";
 
-        color = Math.sin(20 * Math.pow(1 - perspective, 3) + distance * 0.1) > 0 ? "green" : "darkgreen";
-        trackLines.push(new component(middlePoint - gap/2, 5, color, 0, y/2 + j));
-        trackLines.push(new component(x - middlePoint + gap/2, 5, color, middlePoint + gap/2, y/2 + j));
+      trackLines.push(new component(gap, 5, "grey", middlePoint - gap/2, rowY));
+
+      trackLines.push(new component(middlePoint - gap/2, 5, grass_color, 0, rowY));
+
+      trackLines.push(new component(canvas_width - middlePoint + gap/2, 5, grass_color, middlePoint + gap/2, rowY));
+
+      trackLines.push(new component(20, 5, line_color, middlePoint - gap/2, rowY));
+      trackLines.push(new component(20, 5, line_color, middlePoint + gap/2, rowY));
+
+      trackLines.push(new component(20, 5, line_color, middlePoint + gap/2, rowY));
+
+      dashPeriod = 100;
+      isDash = Math.sin(30 * Math.pow(1 - perspective, 1.5) + distance * 0.1) > 0;
+      if (isDash) {
+        trackLines.push(new component(4, 5, "white", middlePoint - 2, rowY));
+      }
     } 
-    while (trackLines.length > y/5) {
+
+    while (trackLines.length > canvas_height/1) {
         trackLines.shift();
     }
     
