@@ -1,6 +1,7 @@
 const CANVAS_WIDTH = 960;
 const CANVAS_HEIGHT = 700;
 const BACKGROUND_LAYERS = 4;
+const SCORE_PER_MAP_CHANGE = 5
 
 var playerCar;
 var myObstacles = [];
@@ -10,7 +11,7 @@ var scoreboard;
 var mapPool = [
     "england",
     "baguette",
-    // "japan",
+    "japan",
     // "bangkok"
 ];
 var currentMap = mapPool[0];
@@ -191,7 +192,7 @@ function updateGameArea() {
     // background shift
     drawBackgroundLayers(curvature * 300);
 
-    if (score !== 0 && !hasChangedMap && score % 5 === 0) {
+    if (score !== 0 && !hasChangedMap && score % SCORE_PER_MAP_CHANGE === 0) {
         hasChangedMap = true;
         currentMap = mapPool[(mapPool.indexOf(currentMap) + 1) % mapPool.length];
         setBackgroundLayers(currentMap);
