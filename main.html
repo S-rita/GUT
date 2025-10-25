@@ -19,12 +19,13 @@ var track = [];
 var myScore;
 var distance = 0;
 var curvature = 0;
+var middlePoint = 0;
 
 function startGame() {
     myGamePiece = new component(30, 30, "red", 270, 540);
     myGamePiece.gravity = 0.05;
     myScore = new component("30px", "Consolas", "black", 280, 40, "text");
-    track.push([0, 1000]);
+    track.push([0, 100]);
     track.push([1, 500]);
     track.push([0, 1000]);
     track.push([-2, 500]);
@@ -112,9 +113,9 @@ function updateGameArea() {
     // }
     myGameArea.clear();
     myGameArea.frameNo += 1;
-    if (everyinterval(100)) {
-        myObstacles.push(new component(30, 30, "red", 270, 270))
-    }
+    // if (everyinterval(100)) {
+    //     myObstacles.push(new component(30, 30, "red", 270, 270))
+    // }
     if (myGameArea.frameNo == 1 || everyinterval(10)) {
         x = myGameArea.canvas.width;
         y = myGameArea.canvas.height;
@@ -124,10 +125,14 @@ function updateGameArea() {
     for (i = 0; i < trackLines.length; i++) {
         trackLines[i].update();
     }
+
     for (i = 0; i < myObstacles.length; i++) {
         myObstacles[i].y += 1;
+        console.log("middle point out", middlePoint);
+        myObstacles[i].x = middlePoint;
         myObstacles[i].update();
     }
+
     myScore.text="SCORE: " + myGameArea.frameNo;
     myScore.update();
     myGamePiece.newPos();
@@ -159,14 +164,15 @@ function draw(canvas) {
     
     trackCurveDiff = (targetCurvature - curvature) * 0.01;
     curvature += trackCurveDiff;
-
+    curvature = 0;
     console.log("targetcurve", targetCurvature);
     console.log("curvature", curvature);
-    
+
     for (j = 0; j < y / 2; j+=5) {
 
         perspective = j / (y / 2);
         middlePoint = x / 2 + curvature * 500 * Math.pow((1 - perspective), 2);
+    
         gap = 250 * perspective + 100;
 
         color = Math.sin(20 * Math.pow(1 - perspective, 3) + distance * 0.1) > 0 ? "green" : "darkgreen";
