@@ -4,7 +4,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <style>
 canvas {
-    border:1px solid #d3d3d3;
+    border: 1px solid #d3d3d3;
     background-color: #f1f1f1;
 }
 </style>
@@ -28,6 +28,64 @@ var track = [];
 var myScore;
 var distance = 0;
 var curvature = 0;
+
+var billboards = []; 
+var billboardImage = new Image(); 
+billboardImage.src = './billboard.png'; 
+var lastBillboardSpawnAt = 0;
+var BILLBOARD_SPAWN_GAP = 60; //600
+var BILLBOARD_MAX_DEPTH = 100; //1500
+
+function isGreenSegment(distance){
+    return Math.sin(20 * Math.pow(1 - (distance / (myGameArea.canvas.height / 2)), 3) + distance * 0.1) > 0;
+}
+
+function spawnBillboard(worldDist){
+    if (isGreenSegment(worldDist)){
+        billboards.push({
+            worldDist, 
+            baseWidth: 100,
+            baseHeight: 100,
+            image: billboardImage, 
+            color: "transparent"
+        }); 
+        console.log("Billboard spawned at ", worldDist); 
+    }
+}
+
+function drawBillboards() {
+    var gameCTX = myGameArea.context; 
+    var i = 0; 
+    while (i < billboards.length){
+        var b = billboards[i]; 
+        var depth = b.worldDist - distance;  //dist from player pos
+        if (depth <= 0) { billboards.splice(i, 1); continue; }
+
+        var p = Math.max(0, Math.min(1, 1 - (depth / BILLBOARD_MAX_DEPTH)));
+        var screenMiddle = myGameArea.canvas.width / 2 + curvature * 500 * Math.pow((1 - p), 2);
+        var screenY = myGameArea.canvas.height/2 + p * (myGameArea.canvas.height/2);
+        var scale = Math.max(0.1, 0.2 + (1 - (depth / BILLBOARD_MAX_DEPTH)) * 1.8);
+        var bw = b.baseWidth * scale;
+        var bh = b.baseHeight * scale;
+        var gap = 250 * p + 100; //gap from path
+        var leftEdge = screenMiddle - gap/2;
+        var rightEdge = screenMiddle + gap/2;
+        var x = leftEdge - bw - 30;
+
+        if(b.image && b.image.complete){
+            gameCTX.drawImage(b.image, x, screenY - bh - 10, bw, bh);  
+        } else {
+            gameCTX.fillStyle = b.color; 
+            gameCTX.fillRect(x, screenY - bh - 10, bw, bh); 
+        }
+
+        if (screenY > myGameArea.canvas.height + 50){
+            billboards.splice(i, 1);
+            continue;
+        }
+        i++; 
+    }
+}
 
 function startGame() {
     myGamePiece = new component(30, 30, "red", 270, 540);
@@ -63,7 +121,7 @@ function component(width, height, color, x, y, spawnOffset=0, laneOffset=0) {
     this.spawnOffset = spawnOffset;
     this.laneOffset = laneOffset;
     this.speedX = 0;
-    this.speedY = 0;    
+    this.speedY = 0;
     this.x = x;
     this.y = y;
     this.update = function() {
@@ -77,6 +135,7 @@ function component(width, height, color, x, y, spawnOffset=0, laneOffset=0) {
             ctx.fillRect(this.x, this.y, this.width, this.height);
         }
     }
+
     this.newPos = function() {
         this.x += this.speedX;
         this.y += this.speedY;
@@ -124,14 +183,23 @@ function updateGameArea() {
         x = myGameArea.canvas.width;
         y = myGameArea.canvas.height;
         distance += speed;
+
+        //billboard
+        if (distance - lastBillboardSpawnAt >= BILLBOARD_SPAWN_GAP){
+            lastBillboardSpawnAt = distance; 
+            spawnBillboard(distance + 500); 
+        }
         draw(myGameArea.canvas)
     }
+
     for (i = 0; i < trackLines.length; i++) {
         trackLines[i].update();
     }
 
+    drawBillboards(); 
+
     if (everyinterval(2000)) {
-        myObstacles.push(new component(30, 30, "red", 270, 240, -15, -100))
+        myObstacles.push(new component(30, 30, "blue", 270, 240, -15, -100))
     }
 
     console.log("curve", curvature);

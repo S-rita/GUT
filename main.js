@@ -17,6 +17,85 @@ const controls = {
   right: false,
 };
 
+//trees
+var tree_types = [
+    './assets/tree_1.svg', 
+    './assets/tree_2.svg'
+]
+var trees = []
+var treeImage = new Image(); 
+treeImage.src = './assets/tree_1.svg'; //default 
+var lastTreeSpawnAt = 0;
+var TREE_SPAWN_GAP = 600; //600
+var TREE_MAX_DEPTH = 500; //1500
+
+//billboards
+var billboards = []; 
+var billboardImage = new Image(); 
+billboardImage.src = './assets/billboard_1.svg'; 
+
+var lastBillboardSpawnAt = 0;
+var BILLBOARD_SPAWN_GAP = 600; //600
+var BILLBOARD_MAX_DEPTH = 500; //1500
+
+function isGreenSegment(distance){
+    return Math.sin(20 * Math.pow(1 - (distance / (myGameArea.canvas.height / 2)), 3) + distance * 0.1) > 0;
+}
+
+function spawnBillboard(worldDist){
+    if (isGreenSegment(worldDist)){
+        billboards.push({
+            worldDist,
+            baseWidth: 200,
+            baseHeight: 200,
+            image: billboardImage, 
+            color: "transparent", 
+            side: Math.random() < 0.5 ? 'left' : 'right'
+        }); 
+        console.log("Billboard spawned at ", worldDist); 
+    }
+}
+
+function drawBillboards() {
+    var gameCTX = myGameArea.context; 
+    var i = 0;
+    while (i < billboards.length){
+        var b = billboards[i]; 
+        var depth = b.worldDist - distance;  //dist from player pos
+        if (depth <= 0) { billboards.splice(i, 1); continue; }
+
+        var p = Math.max(0, Math.min(1, 1 - (depth / BILLBOARD_MAX_DEPTH)));
+
+        var screenMiddle = myGameArea.canvas.width / 2 + curvature * 500 * Math.pow((1 - p), 2);
+
+        var screenY = myGameArea.canvas.height/2 + p * (myGameArea.canvas.height/2);
+        var scale = Math.max(0.1, 0.2 + (1 - (depth / BILLBOARD_MAX_DEPTH)) * 1.8);
+        var bw = b.baseWidth * scale;
+        var bh = b.baseHeight * scale;
+
+      
+        var gap = canvas_width * p + 300;
+        var leftEdge = screenMiddle - gap / 2;
+        var rightEdge = screenMiddle + gap / 2;
+
+        // position left/right of path : 30px offset
+        var x = (b.side === 'left') ? leftEdge - bw - 30 : rightEdge + 30;
+
+        if(b.image && b.image.complete){
+            gameCTX.drawImage(b.image, x, screenY - bh - 10, bw, bh);  
+        } else {
+            gameCTX.fillStyle = b.color; 
+            gameCTX.fillRect(x, screenY - bh - 10, bw, bh); 
+        }
+
+        if (screenY > myGameArea.canvas.height + 50){
+            billboards.splice(i, 1);
+            continue;
+        }
+        i++; 
+    }
+}
+
 
 function startGame() {
   myGamePiece = new component(30, 30, "red", 270, 540);
@@ -114,11 +193,19 @@ function updateGameArea() {
         x = myGameArea.canvas.width;
         y = myGameArea.canvas.height;
         distance += speed;
+        //billboard
+        if (distance - lastBillboardSpawnAt >= BILLBOARD_SPAWN_GAP){
+            lastBillboardSpawnAt = distance; 
+            spawnBillboard(distance + 500); 
+        }
+
         draw(myGameArea.canvas)
     }
     for (i = 0; i < trackLines.length; i++) {
         trackLines[i].update();
     }
+    
+    drawBillboards(); 
 
     if (everyinterval(200)) {
         myObstacles.push(new component(30, 30, "red", 270, 240, 0, 0))
