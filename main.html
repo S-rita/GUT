@@ -12,8 +12,15 @@ canvas {
 <body onload="startGame()">
 <script>
 
-var speed = 2;
+const canvas_width = 1000;
+const canvas_height = 540;
 
+const controls = {
+  left: false,
+  right: false,
+};
+
+var speed = 2;
 var myGamePiece;
 var myObstacles = [];
 var trackLines = []
@@ -142,10 +149,27 @@ function updateGameArea() {
         myObstacles[i].update();
     }
 
-    myScore.text="SCORE: " + myGameArea.frameNo;
-    myScore.update();
-    myGamePiece.newPos();
-    myGamePiece.update();
+  // player movement
+  if (controls.left) {
+    myGamePiece.move(-5);
+  }
+  if (controls.right) {
+    myGamePiece.move(5);
+  }
+
+  scoreboard.text = "SCORE: " + score;
+  scoreboard.update();
+  myGamePiece.newPos();
+  // myGamePiece.update();
+  myGameArea.canvas
+    .getContext("2d")
+    .drawImage(
+      document.getElementById("car"),
+      myGamePiece.x,
+      myGamePiece.y - 150,
+      150,
+      150
+    );
 }
 
 function everyinterval(n) {
@@ -199,6 +223,7 @@ document.addEventListener("keypress", function(event) {
     myGamePiece.move(5)
   }
 });
+
 
 </script>
 <br>

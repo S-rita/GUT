@@ -1,5 +1,5 @@
-const canvas_width = 1000;
-const canvas_height = 540;
+const canvas_width = 960;
+const canvas_height = 700;
 
 var myGamePiece;
 var myObstacles = [];
@@ -9,19 +9,23 @@ var scoreboard;
 var score = 0;
 var distance = 0;
 var middlePoint = 0;
+var speed = 10;
+var curvature = 0;
+
 const controls = {
   left: false,
   right: false,
 };
 
+
 function startGame() {
   myGamePiece = new component(30, 30, "red", 270, 540);
   scoreboard = new component("30px", "Consolas", "black", 280, 40, "text");
-  // track.push([0, 100]);
-  // track.push([1, 500]);
-  // track.push([0, 1000]);
-  // track.push([-2, 500]);
-  // track.push([0, 2000]);
+  track.push([0, 100]);
+  track.push([1, 500]);
+  track.push([0, 1000]);
+  track.push([-2, 500]);
+  track.push([0, 2000]);
   track.push([1, 500]);
   myGameArea.start();
 }
@@ -41,42 +45,41 @@ var myGameArea = {
   },
 };
 
-function component(width, height, color, x, y, type) {
-  this.type = type;
+function component(width, height, color, x, y, spawnOffset=0, laneOffset=0) {
   this.score = 0;
   this.width = width;
   this.height = height;
+  this.spawnOffset = spawnOffset;
+  this.laneOffset = laneOffset;
   this.speedX = 0;
-  this.speedY = 0;
+  this.speedY = 0;    
   this.x = x;
   this.y = y;
-  this.gravity = 0;
-  this.gravitySpeed = 0;
-  this.update = function () {
-    ctx = myGameArea.context;
-    if (this.type == "text") {
-      ctx.font = this.width + " " + this.height;
-      ctx.fillStyle = color;
-      ctx.fillText(this.text, this.x, this.y);
-    } else {
-      ctx.fillStyle = color;
-      ctx.fillRect(this.x, this.y, this.width, this.height);
-    }
-  };
-  this.newPos = function () {
-    this.x += this.speedX;
-    this.hitBottom();
-  };
-  this.hitBottom = function () {
-    var rockbottom = myGameArea.canvas.height - this.height;
-    if (this.y > rockbottom) {
-      this.y = rockbottom;
-      this.gravitySpeed = 0;
-    }
-  };
-  this.move = function (n) {
-    this.x += n;
-  };
+  this.update = function() {
+      ctx = myGameArea.context;
+      if (this.type == "text") {
+          ctx.font = this.width + " " + this.height;
+          ctx.fillStyle = color;
+          ctx.fillText(this.text, this.x, this.y);
+      } else {
+          ctx.fillStyle = color;
+          ctx.fillRect(this.x, this.y, this.width, this.height);
+      }
+  }
+  this.newPos = function() {
+      this.x += this.speedX;
+      this.y += this.speedY;
+      this.hitBottom();
+  }
+  this.hitBottom = function() {
+      var rockbottom = myGameArea.canvas.height - this.height;
+      if (this.y > rockbottom) {
+          this.y = rockbottom;
+      }
+  }
+  this.move = function(n) {
+      this.x += n;
+  } 
   // this.crashWith = function(otherobj) {
   //     var myleft = this.x;
   //     var myright = this.x + (this.width);
@@ -95,36 +98,46 @@ function component(width, height, color, x, y, type) {
 }
 
 function updateGameArea() {
-  var x, height, gap, minHeight, maxHeight, minGap, maxGap;
-  // for (i = 0; i < myObstacles.length; i += 1) {
-  //     if (myGamePiece.crashWith(myObstacles[i])) {
-  //         return;
-  //     }
-  // }
-  myGameArea.clear();
-  myGameArea.frameNo += 1;
-  // if (everyinterval(100)) {
-  //     myObstacles.push(new component(30, 30, "red", 270, 270))
-  // }
-  if (everyinterval(100)) {
-    score += 1;
-  }
-  if (myGameArea.frameNo == 1 || everyinterval(10)) {
-    x = myGameArea.canvas.width;
-    y = myGameArea.canvas.height;
-    distance += 10;
-    draw(myGameArea.canvas);
-  }
-  for (i = 0; i < trackLines.length; i++) {
-    trackLines[i].update();
-  }
+    // for (i = 0; i < myObstacles.length; i += 1) {
+    //     if (myGamePiece.crashWith(myObstacles[i])) {
+    //         return;
+    //     } 
+    // }
 
-  for (i = 0; i < myObstacles.length; i++) {
-    myObstacles[i].y += 1;
-    console.log("middle point out", middlePoint);
-    myObstacles[i].x = middlePoint;
-    myObstacles[i].update();
-  }
+    myGameArea.clear();
+    myGameArea.frameNo += 1;
+
+    canvasHeight = myGameArea.canvas.height;
+    canvasWidth = myGameArea.canvas.width;
+
+    if (myGameArea.frameNo == 1 || everyinterval(5)) {
+        x = myGameArea.canvas.width;
+        y = myGameArea.canvas.height;
+        distance += speed;
+        draw(myGameArea.canvas)
+    }
+    for (i = 0; i < trackLines.length; i++) {
+        trackLines[i].update();
+    }
+
+    if (everyinterval(200)) {
+        myObstacles.push(new component(30, 30, "red", 270, 240, 0, 0))
+    }
+
+    console.log("curve", curvature);
+    for (let i = 0; i < myObstacles.length; i++) {
+        const halfH = canvasHeight / 2;
+        let perspective = (myObstacles[i].y - halfH) / halfH;
+        
+        const middlePointObs = canvasWidth / 2 + myObstacles[i].spawnOffset + curvature * 500 * Math.pow(1 - perspective, 2);
+
+        myObstacles[i].y += speed * 0.1;
+        const laneDrift = myObstacles[i].laneOffset * (perspective);
+        
+        myObstacles[i].x = middlePointObs + laneDrift;
+
+        myObstacles[i].update();
+    }
 
   // player movement
   if (controls.left) {
@@ -143,8 +156,8 @@ function updateGameArea() {
     .drawImage(
       document.getElementById("car"),
       myGamePiece.x,
-      myGamePiece.y - 150,
-      150,
+      530,
+      200,
       150
     );
 }
@@ -161,45 +174,42 @@ function accelerate(n) {
 }
 
 function draw(canvas) {
-  x = canvas.width;
-  y = canvas.height;
+    x = canvas.width;
+    y = canvas.height;
+    
+    offset = 0;
+    trackNumber = 0;
 
-  offset = 0;
-  trackNumber = 0;
+    while (trackNumber < track.length && offset <= distance) {
+        offset += track[trackNumber][1];
+        trackNumber++;
+    }
 
-  while (trackNumber < track.length && offset <= distance) {
-    offset += track[trackNumber][1];
-    trackNumber++;
-  }
+    targetCurvature = track[trackNumber - 1][0];
+    
+    trackCurveDiff = (targetCurvature - curvature) * 0.01;
+    curvature += trackCurveDiff;
 
-  for (j = 0; j < y / 2; j += 5) {
-    perspective = j / (y / 2);
-    middlePoint = x / 2;
+    for (j = 0; j < y / 2; j+=5) {
 
-    gap = 250 * perspective + 100;
+        perspective = j / (y / 2);
+        middlePoint = x / 2 + curvature * 500 * Math.pow((1 - perspective), 2);
+    
+        gap = canvas_width * perspective + 300;
 
-    color =
-      Math.sin(20 * Math.pow(1 - perspective, 3) + distance * 0.1) > 0
-        ? "green"
-        : "darkgreen";
-    trackLines.push(
-      new component(middlePoint - gap / 2, 5, color, 0, y / 2 + j)
-    );
-    trackLines.push(
-      new component(
-        x - middlePoint + gap / 2,
-        5,
-        color,
-        middlePoint + gap / 2,
-        y / 2 + j
-      )
-    );
-  }
-  while (trackLines.length > y / 5) {
-    trackLines.shift();
-  }
+        if (j == 0) {
+            middleValue = middlePoint;
+        }
 
-  if (distance > offset) distance = 0;
+        color = Math.sin(20 * Math.pow(1 - perspective, 3) + distance * 0.1) > 0 ? "green" : "darkgreen";
+        trackLines.push(new component(middlePoint - gap/2, 5, color, 0, y/2 + j));
+        trackLines.push(new component(x - middlePoint + gap/2, 5, color, middlePoint + gap/2, y/2 + j));
+    } 
+    while (trackLines.length > y/5) {
+        trackLines.shift();
+    }
+    
+    if (distance > offset) distance = 0;
 }
 
 document.addEventListener("keydown", (e) => {
