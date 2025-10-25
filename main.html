@@ -112,19 +112,21 @@ function updateGameArea() {
     // }
     myGameArea.clear();
     myGameArea.frameNo += 1;
+    if (everyinterval(100)) {
+        myObstacles.push(new component(30, 30, "red", 270, 270))
+    }
     if (myGameArea.frameNo == 1 || everyinterval(10)) {
         x = myGameArea.canvas.width;
         y = myGameArea.canvas.height;
         distance += 10;
-        
-        // myObstacles.push(new component(30, 30, "red", 270, 540))
-
         draw(myGameArea.canvas, distance)
-
     }
-    for (i = 0; i < trackLines.length; i += 1) {
-        // myObstacles[i].y += 1;
+    for (i = 0; i < trackLines.length; i++) {
         trackLines[i].update();
+    }
+    for (i = 0; i < myObstacles.length; i++) {
+        myObstacles[i].y += 1;
+        myObstacles[i].update();
     }
     myScore.text="SCORE: " + myGameArea.frameNo;
     myScore.update();
