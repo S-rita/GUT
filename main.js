@@ -5,6 +5,23 @@ const SCORE_PER_MAP_CHANGE = 5;
 const CAR_W = 120;
 const CAR_H = 100;
 
+const crashSound = new Audio("assets/boing.mp3");
+crashSound.volume = 0.5;
+
+const car_wheel = new Image();
+const car_no_wheel = new Image();
+const car_left_wheel = new Image();
+const car_left_no_wheel = new Image();
+const car_right_wheel = new Image();
+const car_right_no_wheel = new Image();
+
+car_wheel.src = "assets/car_wheel.svg";
+car_no_wheel.src = "assets/car_no_wheel.svg";
+car_left_wheel.src = "assets/car_left_wheel.svg";
+car_left_no_wheel.src = "assets/car_left_no_wheel.svg";
+car_right_wheel.src = "assets/car_right_wheel.svg";
+car_right_no_wheel.src = "assets/car_right_no_wheel.svg";
+
 var playerCar;
 var myObstacles = [];
 var trackLines = [];
@@ -46,6 +63,7 @@ const controls = {
   right: false,
 };
 
+
 function setBackgroundLayers(map) {
   for (let i = 0; i < BACKGROUND_LAYERS; i++) {
     backgroundBuildingsLayers[i].src = `./assets/background/${map}/${map}_${
@@ -81,11 +99,10 @@ function drawBackgroundLayers(offset = 0) {
 
 function startGame() {
   setBackgroundLayers(currentMap);
-
   playerCar = new component(CAR_W, CAR_H, null, CANVAS_WIDTH / 2, 480, "image");
-  playerCar.imageId = "car";
 
   scoreboard = new component("30px", "Consolas", "black", 40, 60, "text");
+
   sky = new component(CANVAS_WIDTH, CANVAS_HEIGHT / 2, "lightblue", 0, 0);
 
   document.getElementById("restart").style.display = "none";
@@ -133,7 +150,6 @@ function component(
   laneOffset = 0
 ) {
   this.type = type;
-  this.score = 0;
   this.width = width;
   this.height = height;
   this.spawnOffset = spawnOffset;
@@ -141,26 +157,31 @@ function component(
   this.speedX = 0;
   this.x = x;
   this.y = y;
-  this.image = null; // ← add this
+
+  this.image1 = null;
+  this.image2 = null;
+  this.shakeCounter = 0;
+
   this.update = function () {
     const ctx = myGameArea.context;
     if (this.type === "text") {
+
       ctx.font = this.width + " " + this.height;
       ctx.fillStyle = color;
       ctx.fillText(this.text || "", this.x, this.y);
-    } else if (this.type === "image" && this.image) {
-      ctx.drawImage(
-        this.image,
-        this.x - this.width / 2,
-        this.y - this.height / 2,
-        this.width,
-        this.height
-      );
+
+    } else if (this.type === "image") {
+
+      this.shakeCounter += 0.1;
+      const shakeOffset = Math.sin(this.shakeCounter) * 1.5;
+
+      ctx.drawImage(this.image1, this.x - this.width / 2, this.y - this.height / 2, this.width, this.height);
+      ctx.drawImage(this.image2, this.x - this.width / 2, this.y - this.height / 2 + shakeOffset, this.width, this.height);
+
     } else {
+
       ctx.fillStyle = color;
       ctx.fillRect(this.x, this.y, this.width, this.height);
-    }
-  };
 
   this.newPos = function () {
     this.speedX += this.accelX;
@@ -177,9 +198,9 @@ function component(
     this.hitBottom();
   };
 
-  this.hitBottom = function () {
-    const rockbottom = myGameArea.canvas.height - this.height;
-    if (this.y > rockbottom) this.y = rockbottom;
+  this.isHitBottom = function () {
+    const rockbottom = myGameArea.canvas.height + this.height;
+    return this.y > rockbottom;
   };
 
   this.move = function (n) {
@@ -219,10 +240,11 @@ function gameOver() {
 
 function updateGameArea() {
   for (i = 0; i < myObstacles.length; i += 1) {
-    if (playerCar.crashWith(myObstacles[i])) {
-      gameOver();
-      return;
-    }
+      if (playerCar.crashWith(myObstacles[i])) {
+        crashSound.play();
+        gameOver();
+        return;
+      } 
   }
 
   myGameArea.clear();
@@ -242,19 +264,9 @@ function updateGameArea() {
   if (everyinterval(200)) {
     score += 1;
 
-    const lane = Math.random() * 2 - 1;
-
-    const obs = new component(
-      CAR_W,
-      CAR_H,
-      null,
-      270,
-      CANVAS_HEIGHT / 2,
-      "image",
-      -50 * lane,
-      -300 * lane
-    );
-    obs.image = car_enemy;
+    const obs = new component(CAR_W, CAR_H, null, 270, CANVAS_HEIGHT / 2, "image", -50 * lane, -300 * lane);
+    obs.image1 = car_wheel;
+    obs.image2 = car_no_wheel;
     myObstacles.push(obs);
   }
   // background shift
@@ -268,13 +280,16 @@ function updateGameArea() {
   if (score % 5 !== 0) hasChangedMap = false;
 
   for (let i = 0; i < myObstacles.length; i++) {
+    
+    if (myObstacles[i].isHitBottom()) {
+      console.log("delete obstacle");
+      myObstacles.splice(i, 1);
+    }
+
     half_height = CANVAS_HEIGHT / 2;
     let perspective = (myObstacles[i].y - half_height) / half_height;
-
-    const middlePointObs =
-      CANVAS_WIDTH / 2 +
-      myObstacles[i].spawnOffset +
-      curvature * 500 * Math.pow(1 - perspective, 2);
+    
+    const middlePointObs = CANVAS_WIDTH / 2 + myObstacles[i].spawnOffset + curvature * 500 * Math.pow(1 - perspective, 2);
 
     scaleSpeed = 0.1 + score / 100;
     myObstacles[i].y += speed * scaleSpeed;
@@ -288,19 +303,21 @@ function updateGameArea() {
 
     myObstacles[i].update();
   }
+  
+  playerCar.move(0);
+  playerCar.image1 = car_wheel;
+  playerCar.image2 = car_no_wheel;
+  
+  if (controls.left && playerCar.x > 70) {
+    playerCar.move(-5);
+    playerCar.image1 = car_right_wheel;
+    playerCar.image2 = car_right_no_wheel;
+  }
 
-  if (
-    (controls.left && controls.right) ||
-    (!controls.left && !controls.right)
-  ) {
-    playerCar.move(0);
-    playerCar.image = car_straight;
-  } else if (controls.left) {
-    playerCar.move(-0.5);
-    playerCar.image = car_left;
-  } else if (controls.right) {
-    playerCar.move(0.5);
-    playerCar.image = car_right;
+  if (controls.right && playerCar.x < CANVAS_WIDTH - 70) {
+    playerCar.move(5);
+    playerCar.image1 = car_left_wheel;
+    playerCar.image2 = car_left_no_wheel;
   }
 
   scoreboard.text = "SCORE: " + score;
@@ -325,82 +342,57 @@ function draw() {
   offset = 0;
   trackNumber = 0;
 
+  trackLines.length = 0;
+  offset = 0;
+  trackNumber = 0;
+
   while (trackNumber < track.length && offset <= distance) {
-    offset += track[trackNumber][1];
-    trackNumber++;
+      offset += track[trackNumber][1];
+      trackNumber++;
   }
 
   targetCurvature = track[trackNumber - 1][0];
-
+  
   trackCurveDiff = (targetCurvature - curvature) * 0.01;
   curvature += trackCurveDiff;
 
-  for (j = 0; j < CANVAS_HEIGHT / 2; j += 5) {
+  for (j = 0; j < CANVAS_HEIGHT / 2; j++) {
+    
     rowY = CANVAS_HEIGHT / 2 + j;
     perspective = j / (CANVAS_HEIGHT / 2);
-    middlePoint =
-      CANVAS_WIDTH / 2 + curvature * 500 * Math.pow(1 - perspective, 2);
+    middlePoint = CANVAS_WIDTH / 2 + curvature * 500 * Math.pow((1 - perspective), 2);
 
     gap = CANVAS_WIDTH * perspective + 200;
 
     if (j == 0) {
-      middleValue = middlePoint;
+        middleValue = middlePoint;
     }
 
-    grass_color =
-      Math.sin(20 * Math.pow(1 - perspective, 3) + distance * 0.1) > 0
-        ? "green"
-        : "darkgreen";
-    line_color =
-      Math.sin(50 * Math.pow(1 - perspective, 3) + distance * 0.1) > 0
-        ? "red"
-        : "white";
+    grass_color = Math.sin(20 * Math.pow(1 - perspective, 3) + distance * 0.1) > 0 ? "green" : "darkgreen";
 
-    trackLines.push(new component(gap, 5, "grey", middlePoint - gap / 2, rowY));
+    trackLines.push(new component(gap, 5, "grey", middlePoint - gap/2, rowY));
 
-    trackLines.push(
-      new component(middlePoint - gap / 2, 5, grass_color, 0, rowY)
-    );
+    trackLines.push(new component(middlePoint - gap/2, 5, grass_color, 0, rowY));
 
-    trackLines.push(
-      new component(
-        CANVAS_WIDTH - middlePoint + gap / 2,
-        5,
-        grass_color,
-        middlePoint + gap / 2,
-        rowY
-      )
-    );
+    trackLines.push(new component(CANVAS_WIDTH - middlePoint + gap/2, 5, grass_color, middlePoint + gap/2, rowY));
 
-    trackLines.push(
-      new component(20, 5, line_color, middlePoint - gap / 2, rowY)
-    );
-    trackLines.push(
-      new component(20, 5, line_color, middlePoint + gap / 2, rowY)
-    );
+    trackLines.push(new component(15, 5, "white", middlePoint - gap/2, rowY));
+    trackLines.push(new component(15, 5, "white", middlePoint + gap/2, rowY));
 
-    trackLines.push(
-      new component(20, 5, line_color, middlePoint + gap / 2, rowY)
-    );
 
     dashPeriod = 100;
     isDash = Math.sin(30 * Math.pow(1 - perspective, 1.5) + distance * 0.1) > 0;
     if (isDash) {
       trackLines.push(new component(4, 5, "white", middlePoint - 2, rowY));
     }
-  }
-
-  while (trackLines.length > CANVAS_HEIGHT / 1) {
-    trackLines.shift();
-  }
-
+  } 
+  
   if (distance > offset) distance = 0;
 }
 
 document.addEventListener("keydown", (e) => {
   if (e.code === "KeyA") controls.left = true;
   if (e.code === "KeyD") controls.right = true;
-  console.log(controls);
 });
 
 document.addEventListener("keyup", (e) => {
