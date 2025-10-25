@@ -26,6 +26,7 @@ var tree_types = [
 
 var sprites = []; 
 var SPAWN_SEQ = 0; 
+const SPRITE_LIMIT = 60; 
 
 var trees = []
 var treeImage = new Image(); 
@@ -65,6 +66,7 @@ function spawnBillboard(worldDist){
             scaleRate: 0.85
         });
         console.log("Billboard spawned at ", worldDist); 
+        if(sprites.length > SPRITE_LIMIT) sprites.shift(); 
     }
 }
 
@@ -84,6 +86,7 @@ function spawnSprite(worldDist, img, width, height){
             scaleRate: 0.80
         }); 
         console.log("Tree spawned at ", worldDist); 
+        if(sprites.length > SPRITE_LIMIT) sprites.shift(); 
     }
 }
 
@@ -101,7 +104,6 @@ function drawBillboards() {
         var screenMiddle = myGameArea.canvas.width / 2 + curvature * 500 * Math.pow((1 - p), 2);
 
         var screenY = myGameArea.canvas.height/2 + p * (myGameArea.canvas.height/2);
-        // var scale = Math.max(0.1, 0.2 + (1 - (depth / BILLBOARD_MAX_DEPTH)) * 1.8);
         var scale = Math.max(0.1, 0.2 + (1 - (depth / BILLBOARD_MAX_DEPTH)) * 1.8);
 
         var bw = b.baseWidth * scale;
@@ -158,7 +160,9 @@ function drawEntities() {
     renderList.push({ s, x, y: screenY - bh, w: bw, h: bh, depth });
   }
 
-  renderList.sort((a, b) => b.depth - a.depth);
+    if (renderList.length > 1) {
+        renderList.sort((a, b) => b.depth - a.depth);
+    }
 
   // Paint
   for (const r of renderList) {
@@ -256,14 +260,10 @@ function getRandomBetween(min, max) {
 }
 
 function updateGameArea() {
-    // for (i = 0; i < myObstacles.length; i += 1) {
-    //     if (myGamePiece.crashWith(myObstacles[i])) {
-    //         return;
-    //     } 
-    // }
-
     myGameArea.clear();
     myGameArea.frameNo += 1;
+
+    // distance += speed; //move world forward every frame
 
     canvasHeight = myGameArea.canvas.height;
     canvasWidth = myGameArea.canvas.width;
@@ -279,14 +279,13 @@ function updateGameArea() {
     }
 
     if (everyinterval(1)) {
-        // distance += speed;
         if (distance - lastTreeSpawnAt >= TREE_SPAWN_GAP){
             lastTreeSpawnAt = distance;
             spawnSprite(distance + 500, treeImage, 90, 150);
         }
         draw(myGameArea.canvas)
     }
-
+    
 
     for (i = 0; i < trackLines.length; i++) {
         trackLines[i].update();
