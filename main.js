@@ -18,6 +18,16 @@ const controls = {
   right: false,
 };
 
+var car_left = new Image();
+car_left.src = "./assets/car/car_right.svg";
+var car_right = new Image();
+car_right.src = "./assets/car/car_left.svg";
+var car_straight = new Image();
+car_straight.src = "./assets/car/car.svg";
+
+var car_enemy = new Image();
+car_enemy.src = "./assets/car/car.svg";
+
 
 function startGame() {
   playerCar = new component(CAR_W, CAR_H, null, canvas_width / 2, 480, "image");
@@ -68,28 +78,32 @@ function component(width, height, color, x, y, type = null, spawnOffset = 0, lan
   this.spawnOffset = spawnOffset;
   this.laneOffset = laneOffset;
   this.speedX = 0;
-  this.speedY = 0;
   this.x = x;
   this.y = y;
-  this.imageId = null;     // ← add this
+  this.image = null;     // ← add this
   this.update = function () {
     const ctx = myGameArea.context;
     if (this.type === "text") {
       ctx.font = this.width + " " + this.height;
       ctx.fillStyle = color;
       ctx.fillText(this.text || "", this.x, this.y);
-    } else if (this.type === "image" && this.imageId) {
-      const img = document.getElementById(this.imageId);
-      ctx.drawImage(img, this.x - this.width / 2, this.y - this.height / 2, this.width, this.height);
+    } else if (this.type === "image" && this.image) {
+      ctx.drawImage(this.image, this.x - this.width / 2, this.y - this.height / 2, this.width, this.height);
     } else {
       ctx.fillStyle = color;
       ctx.fillRect(this.x, this.y, this.width, this.height);
     }
   };
 
-  this.newPos = function () {
-    this.x += this.speedX;
-    this.y += this.speedY;
+  this.newPos = function() {
+    this.speedX += this.accelX;
+    this.speedX *= 0.90;
+    const maxSpeed = 8;
+    if (this.speedX > maxSpeed) this.speedX = maxSpeed;
+    if (this.speedX < -maxSpeed) this.speedX = -maxSpeed;
+    if ((this.speedX < 0 && this.x > 90)||(this.speedX > 0 && this.x < canvas_width - 90)){
+      this.x += this.speedX;
+    }
     this.hitBottom();
   };
 
@@ -99,7 +113,7 @@ function component(width, height, color, x, y, type = null, spawnOffset = 0, lan
   };
 
   this.move = function (n) { 
-    this.x += n; 
+    this.accelX = n; 
   };
 
   this.crashWith = function(otherobj) {
@@ -156,7 +170,7 @@ function updateGameArea() {
     const lane = (Math.random() * 2 - 1);
 
     const obs = new component(CAR_W, CAR_H, null, 270, canvas_height / 2, "image", -50 * lane, -300 * lane);
-    obs.imageId = "car";
+    obs.image = car_enemy;
     myObstacles.push(obs);
   }
 
@@ -181,19 +195,23 @@ function updateGameArea() {
 
   playerCar.imageId = "car";
   
-  if (controls.left && playerCar.x > 70) {
-    playerCar.move(-5);
-    playerCar.imageId = "car-right";
+  if (controls.left && controls.right || !controls.left && !controls.right){
+    playerCar.move(0);
+    playerCar.image = car_straight;
+  } else if (controls.left) {
+    playerCar.move(-0.5);
+    playerCar.image = car_left;
+  } else if (controls.right) {
+    playerCar.move(0.5);
+    playerCar.image = car_right;
   }
 
-  if (controls.right && playerCar.x < canvas_width - 70) {
-    playerCar.move(5);
-    playerCar.imageId = "car-left";
-  }
+  console.log(playerCar.x)
 
   scoreboard.text = "SCORE: " + score;
-
   scoreboard.update();
+
+  playerCar.newPos();
   playerCar.update();
 }
 
