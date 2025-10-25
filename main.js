@@ -33,7 +33,7 @@ function startGame() {
   playerCar = new component(CAR_W, CAR_H, null, canvas_width / 2, 480, "image");
   playerCar.imageId = "car";
 
-  scoreboard = new component("30px", "Consolas", "black", 280, 40, "text");
+  scoreboard = new component("30px", "Consolas", "black", 40, 60, "text");
   sky = new component(canvas_width, canvas_height / 2, "lightblue", 0, 0);
 
   document.getElementById("restart").style.display = "none";

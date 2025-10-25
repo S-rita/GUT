@@ -36,6 +36,21 @@
             border: 1px solid #d3d3d3;
             background-color: #f1f1f1;
         }
+
+        button {
+            background-color: transparent;
+            background-repeat: no-repeat;
+            border: none;
+            cursor: pointer;
+            overflow: hidden;
+            outline: none;
+        }
+
+        .restart-button {
+            width: 100px;
+            height: 100px;
+        }
+
     </style>
     <script src="main.js"></script>
 </head>
@@ -43,7 +58,7 @@
     <div id="game-container">
         <div id="restart">
             <button onclick="startGame()" style="margin: auto; opacity: 1;">
-                restart
+                <img src="./assets/interface/restart.png" class="restart-button">
             </button>
         </div>
         <div>
