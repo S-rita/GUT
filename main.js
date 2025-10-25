@@ -1,5 +1,5 @@
 const CANVAS_WIDTH = 960;
-const CANVAS_HEIGHT = 700;
+const CANVAS_HEIGHT = 540;
 const BACKGROUND_LAYERS = 4;
 const SCORE_PER_MAP_CHANGE = 5;
 const CAR_W = 120;
@@ -40,16 +40,6 @@ var distance = 0;
 var middlePoint = 0;
 var speed = 10;
 var curvature = 0;
-
-var car_left = new Image();
-car_left.src = "./assets/car/car_right.svg";
-var car_right = new Image();
-car_right.src = "./assets/car/car_left.svg";
-var car_straight = new Image();
-car_straight.src = "./assets/car/car.svg";
-
-var car_enemy = new Image();
-car_enemy.src = "./assets/car/car.svg";
 
 var backgroundBuildingsLayers = [
   new Image(),
@@ -182,6 +172,8 @@ function component(
 
       ctx.fillStyle = color;
       ctx.fillRect(this.x, this.y, this.width, this.height);
+    }
+  }
 
   this.newPos = function () {
     this.speedX += this.accelX;
@@ -195,7 +187,6 @@ function component(
     ) {
       this.x += this.speedX;
     }
-    this.hitBottom();
   };
 
   this.isHitBottom = function () {
@@ -250,8 +241,6 @@ function updateGameArea() {
   myGameArea.clear();
   myGameArea.frameNo += 1;
 
-  // sky.update();
-
   if (myGameArea.frameNo == 1 || everyinterval(5)) {
     distance += speed;
     draw();
@@ -263,6 +252,8 @@ function updateGameArea() {
 
   if (everyinterval(200)) {
     score += 1;
+
+    const lane = (Math.random() * 2 - 1);
 
     const obs = new component(CAR_W, CAR_H, null, 270, CANVAS_HEIGHT / 2, "image", -50 * lane, -300 * lane);
     obs.image1 = car_wheel;
@@ -309,13 +300,13 @@ function updateGameArea() {
   playerCar.image2 = car_no_wheel;
   
   if (controls.left && playerCar.x > 70) {
-    playerCar.move(-5);
+    playerCar.move(-1);
     playerCar.image1 = car_right_wheel;
     playerCar.image2 = car_right_no_wheel;
   }
 
   if (controls.right && playerCar.x < CANVAS_WIDTH - 70) {
-    playerCar.move(5);
+    playerCar.move(1);
     playerCar.image1 = car_left_wheel;
     playerCar.image2 = car_left_no_wheel;
   }
