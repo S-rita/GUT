@@ -25,7 +25,7 @@
             top: 0;
             left: 0;
             width: 100%;
-            height: 540px;
+            height: 100%;
             background-color:  rgba(0, 0, 0, 0.6);;
             display: none;
             
@@ -36,22 +36,30 @@
             border: 1px solid #d3d3d3;
             background-color: #f1f1f1;
         }
+
+        button {
+            background-color: transparent;
+            background-repeat: no-repeat;
+            border: none;
+            cursor: pointer;
+            overflow: hidden;
+            outline: none;
+        }
+
+        .restart-button {
+            width: 100px;
+            height: 100px;
+        }
+
     </style>
     <script src="main.js"></script>
 </head>
 <body onload="startGame()">
-    <img id="car" class="hidden" src="assets/car.svg">
-    <img id="car-left" class="hidden" src="assets/car_left.svg">
-    <img id="car-right" class="hidden" src="assets/car_right.svg">
     <div id="game-container">
         <div id="restart">
             <button onclick="startGame()" style="margin: auto; opacity: 1;">
-                restart
+                <img src="./assets/interface/restart.png" class="restart-button">
             </button>
-        </div>
-        <div>
-            <p>Use the ACCELERATE button to stay in the air</p>
-            <p>How long can you stay alive?</p>
         </div>
     </div>
 

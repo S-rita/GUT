@@ -1,6 +1,9 @@
 const CANVAS_WIDTH = 960;
-const CANVAS_HEIGHT = 540;
-const CAR_W = 120, CAR_H = 100;
+const CANVAS_HEIGHT = 700;
+const BACKGROUND_LAYERS = 4;
+const SCORE_PER_MAP_CHANGE = 5;
+const CAR_W = 120;
+const CAR_H = 100;
 
 const crashSound = new Audio("assets/boing.mp3");
 crashSound.volume = 0.5;
@@ -24,34 +27,94 @@ var myObstacles = [];
 var trackLines = [];
 var track = [];
 var scoreboard;
+var mapPool = [
+  "england",
+  "baguette",
+  "japan",
+  // "bangkok"
+];
+var currentMap = mapPool[0];
 var score = 0;
+var hasChangedMap = false;
 var distance = 0;
 var middlePoint = 0;
 var speed = 10;
 var curvature = 0;
+
+var car_left = new Image();
+car_left.src = "./assets/car/car_right.svg";
+var car_right = new Image();
+car_right.src = "./assets/car/car_left.svg";
+var car_straight = new Image();
+car_straight.src = "./assets/car/car.svg";
+
+var car_enemy = new Image();
+car_enemy.src = "./assets/car/car.svg";
+
+var backgroundBuildingsLayers = [
+  new Image(),
+  new Image(),
+  new Image(),
+  new Image(),
+];
 
 const controls = {
   left: false,
   right: false,
 };
 
-function startGame() {
 
+function setBackgroundLayers(map) {
+  for (let i = 0; i < BACKGROUND_LAYERS; i++) {
+    backgroundBuildingsLayers[i].src = `./assets/background/${map}/${map}_${
+      i + 1
+    }.svg`;
+  }
+}
+
+function drawBackgroundLayers(offset = 0) {
+  var ctx = myGameArea.context;
+  for (let i = BACKGROUND_LAYERS - 1; i >= 0; i--) {
+    var img = backgroundBuildingsLayers[i];
+    if (img && img.complete) {
+      var parallaxSpeed = (i + 1) / BACKGROUND_LAYERS;
+      var totalOffset = offset * parallaxSpeed;
+      var wrappedOffset =
+        ((totalOffset % CANVAS_WIDTH) + CANVAS_WIDTH) % CANVAS_WIDTH;
+
+      var imgHeight = (img.height / img.width) * CANVAS_WIDTH;
+      var yPos = CANVAS_HEIGHT / 2 - imgHeight;
+
+      ctx.drawImage(img, wrappedOffset, yPos, CANVAS_WIDTH, imgHeight);
+      ctx.drawImage(
+        img,
+        wrappedOffset - CANVAS_WIDTH,
+        yPos,
+        CANVAS_WIDTH,
+        imgHeight
+      );
+    }
+  }
+}
+
+function startGame() {
+  setBackgroundLayers(currentMap);
   playerCar = new component(CAR_W, CAR_H, null, CANVAS_WIDTH / 2, 480, "image");
 
-  scoreboard = new component("30px", "Consolas", "black", 280, 40, "text");
+  scoreboard = new component("30px", "Consolas", "black", 40, 60, "text");
+
   sky = new component(CANVAS_WIDTH, CANVAS_HEIGHT / 2, "lightblue", 0, 0);
 
   document.getElementById("restart").style.display = "none";
-  
+
   myObstacles = [];
-  trackLines  = [];
-  track       = [];
-  score       = 0;
-  distance    = 0;
-  curvature   = 0;
+  trackLines = [];
+  track = [];
+  score = 0;
+  distance = 0;
+  curvature = 0;
   myGameArea.frameNo = 0;
-  
+
   track.push([0, 1000]);
   track.push([1, 500]);
   track.push([0, 1000]);
@@ -76,19 +139,29 @@ var myGameArea = {
   },
 };
 
-function component(width, height, color, x, y, type = null, spawnOffset = 0, laneOffset = 0) {
+function component(
+  width,
+  height,
+  color,
+  x,
+  y,
+  type = null,
+  spawnOffset = 0,
+  laneOffset = 0
+) {
   this.type = type;
   this.width = width;
   this.height = height;
   this.spawnOffset = spawnOffset;
   this.laneOffset = laneOffset;
   this.speedX = 0;
-  this.speedY = 0;
   this.x = x;
   this.y = y;
+
   this.image1 = null;
   this.image2 = null;
   this.shakeCounter = 0;
+
   this.update = function () {
     const ctx = myGameArea.context;
     if (this.type === "text") {
@@ -110,7 +183,19 @@ function component(width, height, color, x, y, type = null, spawnOffset = 0, lan
       ctx.fillStyle = color;
       ctx.fillRect(this.x, this.y, this.width, this.height);
 
+  this.newPos = function () {
+    this.speedX += this.accelX;
+    this.speedX *= 0.9;
+    const maxSpeed = 8;
+    if (this.speedX > maxSpeed) this.speedX = maxSpeed;
+    if (this.speedX < -maxSpeed) this.speedX = -maxSpeed;
+    if (
+      (this.speedX < 0 && this.x > 90) ||
+      (this.speedX > 0 && this.x < CANVAS_WIDTH - 90)
+    ) {
+      this.x += this.speedX;
     }
+    this.hitBottom();
   };
 
   this.isHitBottom = function () {
@@ -118,27 +203,32 @@ function component(width, height, color, x, y, type = null, spawnOffset = 0, lan
     return this.y > rockbottom;
   };
 
-  this.move = function (n) { 
-    this.x += n; 
+  this.move = function (n) {
+    this.accelX = n;
   };
 
-  this.crashWith = function(otherobj) {
+  this.crashWith = function (otherobj) {
     const margin = 30;
 
     var myleft = this.x + margin;
-    var myright = this.x + (this.width);
+    var myright = this.x + this.width;
     var mytop = this.y + margin;
-    var mybottom = this.y + (this.height);
+    var mybottom = this.y + this.height;
     var otherleft = otherobj.x + margin;
-    var otherright = otherobj.x + (otherobj.width);
+    var otherright = otherobj.x + otherobj.width;
     var othertop = otherobj.y + margin;
-    var otherbottom = otherobj.y + (otherobj.height);
+    var otherbottom = otherobj.y + otherobj.height;
     var crash = true;
-    if ((mybottom < othertop) || (mytop > otherbottom) || (myright < otherleft) || (myleft > otherright)) {
-        crash = false;
+    if (
+      mybottom < othertop ||
+      mytop > otherbottom ||
+      myright < otherleft ||
+      myleft > otherright
+    ) {
+      crash = false;
     }
     return crash;
-  }
+  };
 }
 
 function gameOver() {
@@ -159,28 +249,35 @@ function updateGameArea() {
 
   myGameArea.clear();
   myGameArea.frameNo += 1;
-  
-  sky.update();
+
+  // sky.update();
 
   if (myGameArea.frameNo == 1 || everyinterval(5)) {
     distance += speed;
-    draw()
+    draw();
   }
-  
-  for (i = 0; i < trackLines.length; i++) {
+
+  for (let i = 0; i < trackLines.length; i++) {
     trackLines[i].update();
   }
 
   if (everyinterval(200)) {
     score += 1;
-    
-    const lane = (Math.random() * 2 - 1);
 
     const obs = new component(CAR_W, CAR_H, null, 270, CANVAS_HEIGHT / 2, "image", -50 * lane, -300 * lane);
     obs.image1 = car_wheel;
     obs.image2 = car_no_wheel;
     myObstacles.push(obs);
   }
+  // background shift
+  drawBackgroundLayers(curvature * 300);
+
+  if (score !== 0 && !hasChangedMap && score % SCORE_PER_MAP_CHANGE === 0) {
+    hasChangedMap = true;
+    currentMap = mapPool[(mapPool.indexOf(currentMap) + 1) % mapPool.length];
+    setBackgroundLayers(currentMap);
+  }
+  if (score % 5 !== 0) hasChangedMap = false;
 
   for (let i = 0; i < myObstacles.length; i++) {
     
@@ -196,17 +293,18 @@ function updateGameArea() {
 
     scaleSpeed = 0.1 + score / 100;
     myObstacles[i].y += speed * scaleSpeed;
-    const laneDrift = myObstacles[i].laneOffset * (perspective);
-    
+    const laneDrift = myObstacles[i].laneOffset * perspective;
+
     myObstacles[i].x = middlePointObs + laneDrift;
 
     scale = 0.2 + 1 * perspective;
-    myObstacles[i].width  = CAR_W * scale;
+    myObstacles[i].width = CAR_W * scale;
     myObstacles[i].height = CAR_H * scale;
 
     myObstacles[i].update();
   }
-
+  
+  playerCar.move(0);
   playerCar.image1 = car_wheel;
   playerCar.image2 = car_no_wheel;
   
@@ -223,8 +321,9 @@ function updateGameArea() {
   }
 
   scoreboard.text = "SCORE: " + score;
-
   scoreboard.update();
+
+  playerCar.newPos();
   playerCar.update();
 }
 
@@ -240,6 +339,8 @@ function accelerate(n) {
 }
 
 function draw() {
+  offset = 0;
+  trackNumber = 0;
 
   trackLines.length = 0;
   offset = 0;
