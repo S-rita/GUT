@@ -142,7 +142,7 @@ function updateGameArea() {
         const middlePointObs = canvasWidth / 2 + myObstacles[i].spawnOffset + curvature * 500 * Math.pow(1 - perspective, 2);
 
         myObstacles[i].y += speed * 0.1;
-        const laneDrift = myObstacles[i].laneOffset * (perspective);
+        const laneDrift = myObstacles[i].laneOffset * (paaerspective);
         
         myObstacles[i].x = middlePointObs + laneDrift;
 
