@@ -1,5 +1,5 @@
 const CANVAS_WIDTH = 960;
-const CANVAS_HEIGHT = 540;
+const CANVAS_HEIGHT = 600;
 const BACKGROUND_LAYERS = 4;
 const SCORE_PER_MAP_CHANGE = 5;
 const CAR_W = 120;
@@ -89,7 +89,7 @@ function drawBackgroundLayers(offset = 0) {
 
 function startGame() {
   setBackgroundLayers(currentMap);
-  playerCar = new component(CAR_W, CAR_H, null, CANVAS_WIDTH / 2, 480, "image");
+  playerCar = new component(CAR_W, CAR_H, null, CANVAS_WIDTH / 2, CANVAS_HEIGHT - 70, "image");
 
   scoreboard = new component("30px", "Consolas", "black", 40, 60, "text");
 
