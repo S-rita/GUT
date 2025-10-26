@@ -3,70 +3,25 @@
 const CANVAS_WIDTH = 960;
 const CANVAS_HEIGHT = 600;
 const BACKGROUND_LAYERS = 4;
-const SCORE_PER_MAP_CHANGE = 25;
+const SCORE_PER_MAP_CHANGE = 5;
 const CAR_W = 120;
 const CAR_H = 100;
 
 const crashSound = new Audio("assets/boing.mp3");
-crashSound.volume = 0.2;
+crashSound.volume = 0.5;
 
-const sheepSound = new Audio("assets/sheep.mp3");
-sheepSound.volume = 0.2;
-
-const woodSound = new Audio("assets/wood.mp3");
-woodSound.volume = 0.2;
-
-// car
 const car_wheel = new Image();
 const car_no_wheel = new Image();
 const car_left_wheel = new Image();
 const car_left_no_wheel = new Image();
 const car_right_wheel = new Image();
 const car_right_no_wheel = new Image();
-
-car_wheel.src = "assets/car/car_wheel.svg";
-car_no_wheel.src = "assets/car/car_no_wheel.svg";
-car_left_wheel.src = "assets/car/car_left_wheel.svg";
-car_left_no_wheel.src = "assets/car/car_left_no_wheel.svg";
-car_right_wheel.src = "assets/car/car_right_wheel.svg";
-car_right_no_wheel.src = "assets/car/car_right_no_wheel.svg";
-
-// obstacle
-const obstacles = [];
-const obstacles_size = [
-  [120, 100], // car_blue_no_wheel
-  [120, 100], // car_green_no_wheel
-  [120, 100], // car_purple_no_wheel
-  [120, 100], // car_yellow_no_wheel
-  [80, 100],   // danger_sign
-  [70, 80],  // sheep_no_leg
-  [80, 100], // sheep_sign
-  [60, 100],   // stop_sign
-  [100, 100], // traffic_barricade
-];
-const wheel = new Image();
-const sheep_leg = new Image();
-
-wheel.src = "assets/obstacle/wheel.svg";
-sheep_leg.src = "assets/obstacle/sheep_leg.svg";
-
-const obstacleFiles = [
-  "car_blue_no_wheel.svg",
-  "car_green_no_wheel.svg",
-  "car_purple_no_wheel.svg",
-  "car_yellow_no_wheel.svg",
-  "danger_sign.svg",
-  "sheep_no_leg.svg",
-  "sheep_sign.svg",
-  "stop_sign.svg",
-  "traffic_barricade.svg",
-];
-
-for (let i = 0; i < obstacleFiles.length; i++) {
-  const img = new Image();
-  img.src = `assets/obstacle/${obstacleFiles[i]}`;
-  obstacles.push(img);
-}
+car_wheel.src = "assets/car_wheel.svg";
+car_no_wheel.src = "assets/car_no_wheel.svg";
+car_left_wheel.src = "assets/car_left_wheel.svg";
+car_left_no_wheel.src = "assets/car_left_no_wheel.svg";
+car_right_wheel.src = "assets/car_right_wheel.svg";
+car_right_no_wheel.src = "assets/car_right_no_wheel.svg";
 
 var playerCar;
 var myObstacles = [];
@@ -77,10 +32,8 @@ var mapPool = [
   "england",
   "baguette",
   "japan",
-  "usa"
   // "bangkok"
 ];
-var switch_map = false;
 var currentMap = mapPool[0];
 var score = 0;
 var hasChangedMap = false;
@@ -295,7 +248,7 @@ function drawEntities() {
 
 function startGame() {
   setBackgroundLayers(currentMap);
-  playerCar = new component(CAR_W, CAR_H, null, CANVAS_WIDTH / 2, CANVAS_HEIGHT-80, "image");
+  playerCar = new component(CAR_W, CAR_H, null, CANVAS_WIDTH / 2, CANVAS_HEIGHT - 70, "image");
 
   scoreboard = new component("30px", "Consolas", "black", 40, 60, "text");
 
@@ -354,9 +307,6 @@ function component(
   this.x = x;
   this.y = y;
 
-  this.baseWidth;
-  this.baseHeight;
-
   this.image1 = null;
   this.image2 = null;
   this.shakeCounter = 0;
@@ -364,12 +314,6 @@ function component(
   this.update = function () {
     const ctx = myGameArea.context;
     if (this.type === "text") {
-      const padding = 5;
-      const textMetrics = ctx.measureText(this.text || "");
-      const textWidth = textMetrics.width;
-      const textHeight = parseInt(this.width, 10); // width holds font size like "30px"
-      ctx.fillStyle = "rgba(255, 255, 255, 0.8)"; 
-      ctx.fillRect(this.x - padding, this.y - textHeight, textWidth + padding * 2, textHeight + padding);
 
       ctx.font = this.width + " " + this.height;
       ctx.fillStyle = color;
@@ -380,8 +324,8 @@ function component(
       this.shakeCounter += 0.1;
       const shakeOffset = Math.sin(this.shakeCounter) * 1.5;
 
-      if (this.image1) ctx.drawImage(this.image1, this.x - this.width / 2, this.y - this.height / 2, this.width, this.height);
-      if (this.image2) ctx.drawImage(this.image2, this.x - this.width / 2, this.y - this.height / 2 + shakeOffset, this.width, this.height);
+      ctx.drawImage(this.image1, this.x - this.width / 2, this.y - this.height / 2, this.width, this.height);
+      ctx.drawImage(this.image2, this.x - this.width / 2, this.y - this.height / 2 + shakeOffset, this.width, this.height);
 
     } else {
 
@@ -451,27 +395,12 @@ function gameOver() {
 }
 
 function updateGameArea() {
-  for (let i = 0; i < myObstacles.length; i++) {
-    if (playerCar.crashWith(myObstacles[i])) {
-      const hitImage = myObstacles[i].image1;
-
-      switch (true) {
-        case hitImage === sheep_leg:
-          sheepSound.play();
-          break;
-
-        case hitImage === obstacles[8]:
-          woodSound.play();
-          break;
-
-        default:
-          crashSound.play();
-          break;
-      }
-
-      gameOver();
-      return;
-    }
+  for (i = 0; i < myObstacles.length; i += 1) {
+      if (playerCar.crashWith(myObstacles[i])) {
+        crashSound.play();
+        gameOver();
+        return;
+      } 
   }
 
   myGameArea.clear();
@@ -513,22 +442,9 @@ function updateGameArea() {
 
     const lane = (Math.random() * 2 - 1);
 
-    const randomIndex = Math.floor(Math.random() * obstacles.length);
-
-    const obs = new component(obstacles_size[randomIndex][0], obstacles_size[randomIndex][1], null, 270, CANVAS_HEIGHT / 2, "image", -50 * lane, -300 * lane);
-    if (randomIndex in [0,1,2,3]) {
-      obs.image1 = wheel;
-      obs.image2 = obstacles[randomIndex];
-    } else if (randomIndex == 5) {
-      obs.image1 = sheep_leg;
-      obs.image2 = obstacles[randomIndex];
-    } else {
-      obs.image1 = obstacles[randomIndex];
-    }
-    
-    obs.baseWidth = obstacles_size[randomIndex][0];
-    obs.baseHeight = obstacles_size[randomIndex][1];
-    // obs.image2 = obstacles[randomIndex];
+    const obs = new component(CAR_W, CAR_H, null, 270, CANVAS_HEIGHT / 2, "image", -50 * lane, -300 * lane);
+    obs.image1 = car_wheel;
+    obs.image2 = car_no_wheel;
     myObstacles.push(obs);
   }
 
@@ -537,11 +453,10 @@ function updateGameArea() {
   // background shift
 //   drawBackgroundLayers(curvature * 300);
 
-  if ((score !== 0 && !hasChangedMap && score % SCORE_PER_MAP_CHANGE === 0) || switch_map) {
+  if (score !== 0 && !hasChangedMap && score % SCORE_PER_MAP_CHANGE === 0) {
     hasChangedMap = true;
     currentMap = mapPool[(mapPool.indexOf(currentMap) + 1) % mapPool.length];
     setBackgroundLayers(currentMap);
-    switch_map = false;
   }
   if (score % 5 !== 0) hasChangedMap = false;
 
@@ -564,9 +479,8 @@ function updateGameArea() {
     myObstacles[i].x = middlePointObs + laneDrift;
 
     scale = 0.2 + 1 * perspective;
-    myObstacles[i].width = myObstacles[i].baseWidth * scale;
-    myObstacles[i].height = myObstacles[i].baseHeight * scale;
-
+    myObstacles[i].width = CAR_W * scale;
+    myObstacles[i].height = CAR_H * scale;
     myObstacles[i].update();
   }
   
@@ -657,12 +571,13 @@ function draw() {
 }
 
 document.addEventListener("keydown", (e) => {
-  if (e.code === "KeyA" || e.code === "ArrowLeft") controls.left = true;
-  if (e.code === "KeyD" || e.code === "ArrowRight") controls.right = true;
-  if (e.code === "ShiftLeft") switch_map = true;
+  if (e.code === "KeyA") controls.left = true;
+  if (e.code === "KeyD") controls.right = true;
 });
 
 document.addEventListener("keyup", (e) => {
-  if (e.code === "KeyA" || e.code === "ArrowLeft") controls.left = false;
-  if (e.code === "KeyD" || e.code === "ArrowRight") controls.right = false;
+  if (e.code === "KeyA") controls.left = false;
+  if (e.code === "KeyD") controls.right = false;
 });
+//fucking important = delete sprite after add new one (first in first out)
+
