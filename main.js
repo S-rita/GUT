@@ -85,7 +85,7 @@ var mapPool = [
   "baguette",
   "japan",
   "usa",
-  "bangkok"
+  "thailand"
 ];
 var switch_map = false;
 var currentMap = mapPool[0];
