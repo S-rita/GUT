@@ -632,7 +632,7 @@ function updateGameArea() {
       isSheepSign = false;
     } else {
       
-      const randomIndex = Math.floor(Math.random() * (obstacles.length + 10));
+      const randomIndex = Math.floor(Math.random() * (obstacles.length - 1));
 
       if ([4, 6, 7].includes(randomIndex)) {
         if (currentMap == "japan") {
