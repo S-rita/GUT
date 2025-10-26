@@ -6,8 +6,15 @@ const CAR_W = 120;
 const CAR_H = 100;
 
 const crashSound = new Audio("assets/boing.mp3");
-crashSound.volume = 0.5;
+crashSound.volume = 0.2;
 
+const sheepSound = new Audio("assets/sheep.mp3");
+sheepSound.volume = 0.2;
+
+const woodSound = new Audio("assets/wood.mp3");
+woodSound.volume = 0.2;
+
+// car
 const car_wheel = new Image();
 const car_no_wheel = new Image();
 const car_left_wheel = new Image();
@@ -15,12 +22,49 @@ const car_left_no_wheel = new Image();
 const car_right_wheel = new Image();
 const car_right_no_wheel = new Image();
 
-car_wheel.src = "assets/car_wheel.svg";
-car_no_wheel.src = "assets/car_no_wheel.svg";
-car_left_wheel.src = "assets/car_left_wheel.svg";
-car_left_no_wheel.src = "assets/car_left_no_wheel.svg";
-car_right_wheel.src = "assets/car_right_wheel.svg";
-car_right_no_wheel.src = "assets/car_right_no_wheel.svg";
+car_wheel.src = "assets/car/car_wheel.svg";
+car_no_wheel.src = "assets/car/car_no_wheel.svg";
+car_left_wheel.src = "assets/car/car_left_wheel.svg";
+car_left_no_wheel.src = "assets/car/car_left_no_wheel.svg";
+car_right_wheel.src = "assets/car/car_right_wheel.svg";
+car_right_no_wheel.src = "assets/car/car_right_no_wheel.svg";
+
+// obstacle
+const obstacles = [];
+const obstacles_size = [
+  [120, 100], // car_blue_no_wheel
+  [120, 100], // car_green_no_wheel
+  [120, 100], // car_purple_no_wheel
+  [120, 100], // car_yellow_no_wheel
+  [80, 100],   // danger_sign
+  [70, 80],  // sheep_no_leg
+  [80, 100], // sheep_sign
+  [60, 100],   // stop_sign
+  [100, 100], // traffic_barricade
+];
+const wheel = new Image();
+const sheep_leg = new Image();
+
+wheel.src = "assets/obstacle/wheel.svg";
+sheep_leg.src = "assets/obstacle/sheep_leg.svg";
+
+const obstacleFiles = [
+  "car_blue_no_wheel.svg",
+  "car_green_no_wheel.svg",
+  "car_purple_no_wheel.svg",
+  "car_yellow_no_wheel.svg",
+  "danger_sign.svg",
+  "sheep_no_leg.svg",
+  "sheep_sign.svg",
+  "stop_sign.svg",
+  "traffic_barricade.svg",
+];
+
+for (let i = 0; i < obstacleFiles.length; i++) {
+  const img = new Image();
+  img.src = `assets/obstacle/${obstacleFiles[i]}`;
+  obstacles.push(img);
+}
 
 var playerCar;
 var myObstacles = [];
@@ -31,6 +75,7 @@ var mapPool = [
   "england",
   "baguette",
   "japan",
+  "usa"
   // "bangkok"
 ];
 var currentMap = mapPool[0];
@@ -148,6 +193,9 @@ function component(
   this.x = x;
   this.y = y;
 
+  this.baseWidth;
+  this.baseHeight;
+
   this.image1 = null;
   this.image2 = null;
   this.shakeCounter = 0;
@@ -165,8 +213,8 @@ function component(
       this.shakeCounter += 0.1;
       const shakeOffset = Math.sin(this.shakeCounter) * 1.5;
 
-      ctx.drawImage(this.image1, this.x - this.width / 2, this.y - this.height / 2, this.width, this.height);
-      ctx.drawImage(this.image2, this.x - this.width / 2, this.y - this.height / 2 + shakeOffset, this.width, this.height);
+      if (this.image1) ctx.drawImage(this.image1, this.x - this.width / 2, this.y - this.height / 2, this.width, this.height);
+      if (this.image2) ctx.drawImage(this.image2, this.x - this.width / 2, this.y - this.height / 2 + shakeOffset, this.width, this.height);
 
     } else {
 
@@ -230,12 +278,27 @@ function gameOver() {
 }
 
 function updateGameArea() {
-  for (i = 0; i < myObstacles.length; i += 1) {
-      if (playerCar.crashWith(myObstacles[i])) {
-        crashSound.play();
-        gameOver();
-        return;
-      } 
+  for (let i = 0; i < myObstacles.length; i++) {
+    if (playerCar.crashWith(myObstacles[i])) {
+      const hitImage = myObstacles[i].image1;
+
+      switch (true) {
+        case hitImage === sheep_leg:
+          sheepSound.play();
+          break;
+
+        case hitImage === obstacles[8]:
+          woodSound.play();
+          break;
+
+        default:
+          crashSound.play();
+          break;
+      }
+
+      gameOver();
+      return;
+    }
   }
 
   myGameArea.clear();
@@ -255,9 +318,22 @@ function updateGameArea() {
 
     const lane = (Math.random() * 2 - 1);
 
-    const obs = new component(CAR_W, CAR_H, null, 270, CANVAS_HEIGHT / 2, "image", -50 * lane, -300 * lane);
-    obs.image1 = car_wheel;
-    obs.image2 = car_no_wheel;
+    const randomIndex = Math.floor(Math.random() * obstacles.length);
+
+    const obs = new component(obstacles_size[randomIndex][0], obstacles_size[randomIndex][1], null, 270, CANVAS_HEIGHT / 2, "image", -50 * lane, -300 * lane);
+    if (randomIndex in [0,1,2,3]) {
+      obs.image1 = wheel;
+      obs.image2 = obstacles[randomIndex];
+    } else if (randomIndex == 5) {
+      obs.image1 = sheep_leg;
+      obs.image2 = obstacles[randomIndex];
+    } else {
+      obs.image1 = obstacles[randomIndex];
+    }
+    
+    obs.baseWidth = obstacles_size[randomIndex][0];
+    obs.baseHeight = obstacles_size[randomIndex][1];
+    // obs.image2 = obstacles[randomIndex];
     myObstacles.push(obs);
   }
   // background shift
@@ -289,8 +365,8 @@ function updateGameArea() {
     myObstacles[i].x = middlePointObs + laneDrift;
 
     scale = 0.2 + 1 * perspective;
-    myObstacles[i].width = CAR_W * scale;
-    myObstacles[i].height = CAR_H * scale;
+    myObstacles[i].width = myObstacles[i].baseWidth * scale;
+    myObstacles[i].height = myObstacles[i].baseHeight * scale;
 
     myObstacles[i].update();
   }
