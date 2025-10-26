@@ -5,28 +5,27 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     html, body {
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      background-color: #f1f1f1;
-      font-family: sans-serif;
+    height: 100%;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #f1f1f1;
     }
+
+    #game-container {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    }
+
 
     h1 {
       margin: 10px 0 15px 0;
       color: #333;
       text-align: center;
       font-family: "halcom,system-ui,-apple-system,Segoe UI,Roboto,Helvetica Neue,Arial,Noto Sans,Liberation Sans,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol,Noto Color Emoji";
-    }
-
-    #game-container {
-      position: relative;
-      display: flex;
-      justify-content: center;
-      align-items: center;
     }
 
     #restart {
@@ -97,13 +96,13 @@
 </head>
 
 <body onload="startGame()">
-    <div class="title-container">
+    <!-- <div class="title-container">
         <span class="text-deco"></span>
         <span class="title-text">Error 404</span>
         <span class="text-deco"></span>
     </div>
     <h1>Sorry, we can’t find that page</h1>
-    <h3>While you're here, fancy a quick drive?</h3>
+    <h3>While you're here, fancy a quick drive?</h3> -->
 
     <div id="game-container">
         <div id="restart" class="hidden">
@@ -113,7 +112,7 @@
         </div>
     </div>
 
-    <button class="return">Return to Homepage →</button>
+    <!-- <button class="return">Return to Homepage →</button> -->
 </body>
 
 </html>

@@ -422,6 +422,7 @@ function component(
   this.spawnOffset = spawnOffset;
   this.spawnLaneOffset = spawnLaneOffset;
   this.speedX = 0;
+  this.toRemove = 0;
   this.x = x;
   this.y = y;
 
@@ -438,7 +439,7 @@ function component(
       const padding = 5;
       const textMetrics = ctx.measureText(this.text || "");
       const textWidth = textMetrics.width;
-      const textHeight = parseInt(this.width, 10); // width holds font size like "30px"
+      const textHeight = parseInt(this.width, 10);
       ctx.fillStyle = "rgba(255, 255, 255, 0.8)"; 
       ctx.fillRect(this.x - padding, this.y - textHeight, textWidth + padding * 2, textHeight + padding);
 
@@ -596,7 +597,7 @@ function updateGameArea() {
         if (worldDistance - lastBillboardSpawnAt >= BILLBOARD_SPAWN_GAP){
             lastBillboardSpawnAt = worldDistance;
             // spawnBillboard(worldDistance + 100);
-            spawnBillboard(worldDistance + 1.4 * BILLBOARD_MAX_DEPTH / BILLBOARD_SCROLL); //spawn position -> more = further from the frame
+            spawnBillboard(worldDistance + 1.4 * BILLBOARD_MAX_DEPTH / BILLBOARD_SCROLL); 
 
         }
         // draw(myGameArea.canvas)
@@ -659,46 +660,40 @@ function updateGameArea() {
 
   // Update Obstacles
   for (let i = 0; i < myObstacles.length; i++) {
+    const o = myObstacles[i];
     
-    if (myObstacles[i].image2 != obstacles[9] && myObstacles[i].isHitBottom()) {
-      console.log("delete obstacle");
-      myObstacles.splice(i, 1);
-      return;
+    // mark to remove later
+    if ((o.image2 !== obstacles[9] && o.isHitBottom()) ||
+        (o.image2 === obstacles[9] && o.isHitMiddle())) {
+      o.toRemove = true;
+      if (o.image2 === obstacles[9]) jpSound.pause();
+      continue;
     }
 
-    if (myObstacles[i].image2 == obstacles[9] && myObstacles[i].isHitMiddle()) {
-      console.log("delete obstacle");
-      myObstacles.splice(i, 1);
-      jpSound.pause()
-      return;
-    }
+    // normal update
+    const half_height = CANVAS_HEIGHT / 2;
+    const perspective = (o.y - half_height) / half_height;
+    const middlePointObs = CANVAS_WIDTH / 2 + o.spawnOffset + curvature * 500 * Math.pow(1 - perspective, 2);
 
-    half_height = CANVAS_HEIGHT / 2;
-    let perspective = (myObstacles[i].y - half_height) / half_height;
+    let scaleSpeed = 0.1 + (score / 100) * perspective;
+    let scaleSize = 0.2 + 1 * perspective;
 
-    const middlePointObs = CANVAS_WIDTH / 2 + myObstacles[i].spawnOffset + curvature * 500 * Math.pow(1 - perspective, 2);
-
-    scaleSpeed = 0.1 + (score / 100) * perspective;
-    scaleSize = 0.2 + 1 * perspective;
-
-    if (myObstacles[i].image1 == obstacles[6]) scaleSpeed *= 0.5;
-    if (myObstacles[i].image2 == obstacles[9]) {
-      jpSound.play();
-      jpSound.volume = perspective;
-      console.log(perspective);
+    if (o.image1 === obstacles[6]) scaleSpeed *= 0.5;
+    if (o.image2 === obstacles[9]) {
+      if (jpSound.paused) jpSound.play();
+      jpSound.volume = Math.max(0, Math.min(1, perspective));
       scaleSpeed *= -1;
     }
 
-    myObstacles[i].y += speed * scaleSpeed;
-    const spawnLaneDrift = myObstacles[i].spawnLaneOffset * perspective;
-
-    myObstacles[i].x = middlePointObs + spawnLaneDrift;
-
-    myObstacles[i].width = myObstacles[i].baseWidth * scaleSize;
-    myObstacles[i].height = myObstacles[i].baseHeight * scaleSize;
-
-    myObstacles[i].update();
+    o.y += speed * scaleSpeed;
+    const spawnLaneDrift = o.spawnLaneOffset * perspective;
+    o.x = middlePointObs + spawnLaneDrift;
+    o.width = o.baseWidth * scaleSize;
+    o.height = o.baseHeight * scaleSize;
+    o.update();
   }
+
+  myObstacles = myObstacles.filter(o => !o.toRemove);
   
   // player movement
   playerCar.move(0);
