@@ -8,8 +8,17 @@ const CAR_W = 120;
 const CAR_H = 100;
 
 const crashSound = new Audio("assets/boing.mp3");
-crashSound.volume = 0.5;
+crashSound.volume = 0.2;
 
+const sheepSound = new Audio("assets/sheep.mp3");
+sheepSound.volume = 0.2;
+
+const woodSound = new Audio("assets/wood.mp3");
+woodSound.volume = 0.2;
+
+const jpSound = new Audio("assets/jp.mp3");
+
+// car
 const car_wheel = new Image();
 const car_no_wheel = new Image();
 const car_left_wheel = new Image();
@@ -24,6 +33,45 @@ car_left_no_wheel.src = "assets/car/car_left_no_wheel.svg";
 car_right_wheel.src = "assets/car/car_right_wheel.svg";
 car_right_no_wheel.src = "assets/car/car_right_no_wheel.svg";
 
+// obstacle
+const obstacles = [];
+const obstacles_size = [
+  [120, 100], // car_blue_no_wheel
+  [120, 100], // car_green_no_wheel
+  [120, 100], // car_purple_no_wheel
+  [120, 100], // car_yellow_no_wheel
+  [80, 100],   // danger_sign
+  [70, 80],  // sheep_no_leg
+  [80, 100], // sheep_sign
+  [60, 100],   // stop_sign
+  [100, 100], // traffic_barricade
+  [120, 100], // car_yellow_no_wheel
+];
+const wheel = new Image();
+const sheep_leg = new Image();
+
+wheel.src = "assets/obstacle/wheel.svg";
+sheep_leg.src = "assets/obstacle/sheep_leg.svg";
+
+const obstacleFiles = [
+  "car_blue_no_wheel.svg",
+  "car_green_no_wheel.svg",
+  "car_purple_no_wheel.svg",
+  "car_yellow_no_wheel.svg",
+  "danger_sign.svg",
+  "sheep_no_leg.svg",
+  "sheep_sign.svg",
+  "stop_sign.svg",
+  "traffic_barricade.svg",
+  "car_jp_no_wheel.svg"
+];
+
+for (let i = 0; i < obstacleFiles.length; i++) {
+  const img = new Image();
+  img.src = `assets/obstacle/${obstacleFiles[i]}`;
+  obstacles.push(img);
+}
+
 var playerCar;
 var myObstacles = [];
 var trackLines = [];
@@ -33,16 +81,18 @@ var mapPool = [
   "england",
   "baguette",
   "japan",
+  "usa"
   // "bangkok"
 ];
 var switch_map = false;
-var currentMap = mapPool[0];
+var currentMap = "japan";
 var score = 0;
 var hasChangedMap = false;
 var distance = 0;
 var middlePoint = 0;
-var speed = 10;
+var speed = 8;
 var curvature = 0;
+var isSheepSign = 0;
 
 var backgroundBuildingsLayers = [
   new Image(),
@@ -129,7 +179,7 @@ const BILLBOARD_MAX_DEPTH = 2000; //1500
 const BILLBOARD_SCROLL = 0.30
 
 function isGreenSegment(distance){
-    return Math.sin(20 * Math.pow(1 - (distance / (myGameArea.canvas.height / 2)), 3) + distance * 0.1) > 0;
+    return Math.sin(20 * Math.pow(1 - (distance / (CANVAS_HEIGHT / 2)), 3) + distance * 0.1) > 0;
 }
 
 function spawnBillboard(worldDist){
@@ -184,9 +234,9 @@ function drawBillboards() {
         var p = Math.max(0, Math.min(1, 1 - (depth / BILLBOARD_MAX_DEPTH)));
         p *= 0.85 //scale rate 
 
-        var screenMiddle = myGameArea.canvas.width / 2 + curvature * 500 * Math.pow((1 - p), 2);
+        var screenMiddle = CANVAS_WIDTH / 2 + curvature * 500 * Math.pow((1 - p), 2);
 
-        var screenY = myGameArea.canvas.height/2 + p * (myGameArea.canvas.height/2);
+        var screenY = CANVAS_HEIGHT/2 + p * (CANVAS_HEIGHT/2);
         var scale = Math.max(0.1, 0.2 + (1 - (depth / BILLBOARD_MAX_DEPTH)) * 1.8);
 
         var bw = b.baseWidth * scale;
@@ -206,7 +256,7 @@ function drawBillboards() {
             gameCTX.fillRect(x, screenY - bh, bw, bh); 
         }
 
-        if (screenY > myGameArea.canvas.height + 50){
+        if (screenY > CANVAS_HEIGHT + 50){
             billboards.splice(i, 1);
             continue;
         }
@@ -231,8 +281,8 @@ function drawEntities() {
     let p = Math.max(0, Math.min(1, 1 - (depth / s.maxDepth)));
     p *= s.scaleRate;
 
-    const screenMiddle = myGameArea.canvas.width / 2 + curvature * 500 * Math.pow((1 - p), 2);
-    const screenY = myGameArea.canvas.height/2 + p * (myGameArea.canvas.height/2);
+    const screenMiddle = CANVAS_WIDTH / 2 + curvature * 500 * Math.pow((1 - p), 2);
+    const screenY = CANVAS_HEIGHT/2 + p * (CANVAS_HEIGHT/2);
     const scale = Math.max(0.1, 0.2 + (1 - (depth / s.maxDepth)) * 1.8);
 
     const bw = s.baseWidth  * scale;
@@ -331,6 +381,9 @@ function component(
   this.x = x;
   this.y = y;
 
+  this.baseWidth;
+  this.baseHeight;
+
   this.image1 = null;
   this.image2 = null;
   this.shakeCounter = 0;
@@ -354,8 +407,8 @@ function component(
       this.shakeCounter += 0.1;
       const shakeOffset = Math.sin(this.shakeCounter) * 1.5;
 
-      ctx.drawImage(this.image1, this.x - this.width / 2, this.y - this.height / 2, this.width, this.height);
-      ctx.drawImage(this.image2, this.x - this.width / 2, this.y - this.height / 2 + shakeOffset, this.width, this.height);
+      if (this.image1) ctx.drawImage(this.image1, this.x - this.width / 2, this.y - this.height / 2, this.width, this.height);
+      if (this.image2) ctx.drawImage(this.image2, this.x - this.width / 2, this.y - this.height / 2 + shakeOffset, this.width, this.height);
 
     } else {
 
@@ -379,8 +432,13 @@ function component(
   };
 
   this.isHitBottom = function () {
-    const rockbottom = myGameArea.canvas.height + this.height;
+    const rockbottom = CANVAS_HEIGHT + this.height;
     return this.y > rockbottom;
+  };
+
+  this.isHitMiddle = function () {
+    const rockbottom = CANVAS_HEIGHT / 2 ;
+    return this.y < rockbottom;
   };
 
   this.move = function (n) {
@@ -423,14 +481,54 @@ function gameOver() {
   overlay.style.display = "flex";
 }
 
+function spawnObstacle(obstacleIndex, lane) {
+
+  var startY = CANVAS_HEIGHT / 2;
+  if (obstacleIndex == 9) startY = CANVAS_HEIGHT;
+  const obs = new component(obstacles_size[obstacleIndex][0], obstacles_size[obstacleIndex][1], null, CANVAS_WIDTH/2, startY, "image", -50 * lane, -300 * lane);
+  
+  if ([0,1,2,3].includes(obstacleIndex)) {
+    obs.image1 = wheel;
+    obs.image2 = obstacles[obstacleIndex];
+  } else if (obstacleIndex == 5) {
+    obs.image1 = sheep_leg;
+    obs.image2 = obstacles[obstacleIndex];
+  } else if (obstacleIndex == 9) {
+    obs.image1 = car_wheel;
+    obs.image2 = obstacles[obstacleIndex];
+  }else {
+    obs.image1 = obstacles[obstacleIndex];
+  }
+  
+  obs.baseWidth = obstacles_size[obstacleIndex][0];
+  obs.baseHeight = obstacles_size[obstacleIndex][1];
+
+  myObstacles.push(obs);
+}
+
 function updateGameArea() {
-  for (i = 0; i < myObstacles.length; i += 1) {
-      if (playerCar.crashWith(myObstacles[i])) {
-        crashSound.play();
-        gameOver();
-        sprites.length = 0; 
-        return;
-      } 
+  for (let i = 0; i < myObstacles.length; i++) {
+    if (playerCar.crashWith(myObstacles[i])) {
+      jpSound.pause();
+      const hitImage = myObstacles[i].image1;
+
+      switch (true) {
+        case hitImage === sheep_leg:
+          sheepSound.play();
+          break;
+
+        case hitImage === obstacles[8]:
+          woodSound.play();
+          break;
+
+        default:
+          crashSound.play();
+          break;
+      }
+
+      gameOver();
+      return;
+    }
   }
 
   myGameArea.clear();
@@ -476,22 +574,35 @@ function updateGameArea() {
 
   drawEntities();
 
+  // Spawn Obstacles
   if (everyinterval(200)) {
     score += 1;
 
-    const lane = (Math.random() * 2 - 1);
+    var lane = (Math.random() * 2 - 1);
 
-    const obs = new component(CAR_W, CAR_H, null, 270, CANVAS_HEIGHT / 2, "image", -50 * lane, -300 * lane);
-    obs.image1 = car_wheel;
-    obs.image2 = car_no_wheel;
-    myObstacles.push(obs);
-  }
+    if (isSheepSign) {
+      for (i = 0; i < 2; i++) {
+        spawnObstacle(5, lane + i * 0.5);
+      }
+      isSheepSign = false;
+      return;
+    }
 
+    const randomIndex = Math.floor(Math.random() * obstacles.length - 1);
     
+    if ([4, 6, 7].includes(randomIndex)) {
+      if (currentMap == "japan") {
+        spawnObstacle(9, 0);
+        return;
+      }
+      lane = Math.random() < 0.5 ? -2.5 : 2.5;
+      if (randomIndex == 6) isSheepSign = true;
+    }
 
-  // background shift
-//   drawBackgroundLayers(curvature * 300);
-
+    spawnObstacle(randomIndex, lane);
+  }
+  
+  // Change Map
   if ((score !== 0 && !hasChangedMap && score % SCORE_PER_MAP_CHANGE === 0) || switch_map) {
     hasChangedMap = true;
     currentMap = mapPool[(mapPool.indexOf(currentMap) + 1) % mapPool.length];
@@ -500,30 +611,50 @@ function updateGameArea() {
   }
   if (score % 5 !== 0) hasChangedMap = false;
 
+  // Update Obstacles
   for (let i = 0; i < myObstacles.length; i++) {
     
-    if (myObstacles[i].isHitBottom()) {
+    if (myObstacles[i].image2 != obstacles[9] && myObstacles[i].isHitBottom()) {
       console.log("delete obstacle");
       myObstacles.splice(i, 1);
+      return;
+    }
+
+    if (myObstacles[i].image2 == obstacles[9] && myObstacles[i].isHitMiddle()) {
+      console.log("delete obstacle");
+      myObstacles.splice(i, 1);
+      jpSound.pause()
+      return;
     }
 
     half_height = CANVAS_HEIGHT / 2;
     let perspective = (myObstacles[i].y - half_height) / half_height;
-    
+
     const middlePointObs = CANVAS_WIDTH / 2 + myObstacles[i].spawnOffset + curvature * 500 * Math.pow(1 - perspective, 2);
 
-    scaleSpeed = 0.1 + score / 100;
+    scaleSpeed = 0.1 + (score / 100) * perspective;
+    scaleSize = 0.2 + 1 * perspective;
+
+    if (myObstacles[i].image1 == obstacles[6]) scaleSpeed *= 0.5;
+    if (myObstacles[i].image2 == obstacles[9]) {
+      jpSound.play();
+      jpSound.volume = perspective;
+      console.log(perspective);
+      scaleSpeed *= -1;
+    }
+
     myObstacles[i].y += speed * scaleSpeed;
     const laneDrift = myObstacles[i].laneOffset * perspective;
 
     myObstacles[i].x = middlePointObs + laneDrift;
 
-    scale = 0.2 + 1 * perspective;
-    myObstacles[i].width = CAR_W * scale;
-    myObstacles[i].height = CAR_H * scale;
+    myObstacles[i].width = myObstacles[i].baseWidth * scaleSize;
+    myObstacles[i].height = myObstacles[i].baseHeight * scaleSize;
+
     myObstacles[i].update();
   }
   
+  // Player movement
   playerCar.move(0);
   playerCar.image1 = car_wheel;
   playerCar.image2 = car_no_wheel;
