@@ -315,7 +315,7 @@ function drawEntities() {
 
 function startGame() {
   setBackgroundLayers(currentMap);
-  playerCar = new component(CAR_W, CAR_H, null, CANVAS_WIDTH / 2, CANVAS_HEIGHT-80, "image");
+  playerCar = new component(CAR_W, CAR_H, null, CANVAS_WIDTH / 2, CANVAS_HEIGHT-100, "image");
 
   scoreboard = new component("30px", "Consolas", "black", 40, 60, "text");
 
@@ -719,7 +719,7 @@ function draw() {
         middleValue = middlePoint;
     }
 
-    grass_color = Math.sin(20 * Math.pow(1 - perspective, 3) + distance * 0.1) > 0 ? "green" : "darkgreen";
+    grass_color = Math.sin(20 * Math.pow(1 - perspective, 3) + distance * 0.006) > 0 ? "green" : "darkgreen";
 
     trackLines.push(new component(gap, 5, "grey", middlePoint - gap/2, rowY));
 
@@ -732,7 +732,7 @@ function draw() {
 
 
     dashPeriod = 100;
-    isDash = Math.sin(30 * Math.pow(1 - perspective, 1.5) + distance * 0.1) > 0;
+    isDash = Math.sin(30 * Math.pow(1 - perspective, 1.5) + distance * 0.2) > 0;
     if (isDash) {
       trackLines.push(new component(4, 5, "white", middlePoint - 2, rowY));
     }
