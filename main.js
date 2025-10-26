@@ -778,7 +778,7 @@ function draw() {
 
 
     dashPeriod = 100;
-    isDash = Math.sin(30 * Math.pow(1 - perspective, 1.5) + distance * 0.2) > 0;
+    isDash = Math.sin(30 * Math.pow(1 - perspective, 1.5) + distance * 0.01) > 0;
     if (isDash) {
       trackLines.push(new component(4, 5, "white", middlePoint - 2, rowY));
     }
