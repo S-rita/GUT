@@ -20,6 +20,11 @@ woodSound.volume = 0.2;
 
 const jpSound = new Audio("assets/jp.mp3");
 
+const carSound = new Audio("assets/car.mp3");
+carSound.loop = true;
+carSound.volume = 0;
+let carSoundActive = false;
+
 var playerCar;
 var myObstacles = [];
 var trackLines = [];
@@ -38,7 +43,7 @@ var score = 0;
 var hasChangedMap = false;
 var distance = 0;
 var middlePoint = 0;
-var speed = 8;
+var speed = 20;
 var curvature = 0;
 var isSheepSign = 0;
 var spawnspawnLane = 0;
@@ -97,40 +102,108 @@ for (let i = 0; i < obstacleFiles.length; i++) {
   obstacles.push(img);
 }
 
-const countryObstacles = {};
+// --- helpers ---
+const img = (src) => { const i = new Image(); i.src = src; return i; };
 
-for (const country of mapPool) {
-
-  const folderName = `assets/obstacles_${country}/`;
-
-  let obstacleFiles = [];
-  switch (country) {
-    case "england":
-      obstacleFiles = ["sheep_leg.svg", "sheep_no_leg.svg", "sheep_sign.svg"];
-      break;
-    case "baguette":
-      obstacleFiles = ["cone.svg", "hydrant.svg"];
-      break;
-    case "japan":
-      obstacleFiles = ["jp_barricade.svg", "vending.svg"];
-      break;
-    case "usa":
-      obstacleFiles = ["garbage.svg", "stop_text_sign.svg"];
-      break;
-    case "thailand":
-      obstacleFiles = ["market.svg", "tuktuk.svg", "tuktuk_wheel.svg"];
-      break;
-    default:
-      obstacleFiles = [];
+const ASSETS = {
+  base: {
+    wheel, sheep_leg,
+    car_wheel, car_no_wheel, car_left_wheel, car_left_no_wheel, car_right_wheel, car_right_no_wheel,
+    // your global obstacle sprites:
+    car_blue: obstacles[0],
+    car_green: obstacles[1],
+    car_purple: obstacles[2],
+    car_yellow: obstacles[3],
+    danger_sign: obstacles[4],
+    sheep_no_leg: obstacles[5],
+    sheep_sign: obstacles[6],
+    stop_sign: obstacles[7],
+    barricade: obstacles[8],
+    car_jp_no_wheel: obstacles[9],
+  },
+  country: {
+    england: {
+      sheep_leg: img("assets/obstacles_england/sheep_leg.svg"),
+      sheep_no_leg: img("assets/obstacles_england/sheep_no_leg.svg"),
+      sheep_sign: img("assets/obstacles_england/sheep_sign.svg"),
+    },
+    baguette: {
+      cone: img("assets/obstacles_baguette/cone.svg"),
+      hydrant: img("assets/obstacles_baguette/hydrant.svg"),
+    },
+    japan: {
+      jp_barricade: img("assets/obstacles_japan/jp_barricade.svg"),
+      vending: img("assets/obstacles_japan/vending.svg"),
+    },
+    usa: {
+      garbage: img("assets/obstacles_usa/garbage.svg"),
+      stop_text_sign: img("assets/obstacles_usa/stop_text_sign.svg"),
+    },
+    thailand: {
+      market: img("assets/obstacles_thailand/market.svg"),
+      tuktuk: img("assets/obstacles_thailand/tuktuk.svg"),
+      tuktuk_wheel: img("assets/obstacles_thailand/tuktuk_wheel.svg"),
+    },
   }
+};
 
-  countryObstacles[country] = obstacleFiles.map(file => {
-    const img = new Image();
-    img.src = `${folderName}${file}`;
-    return img;
-  });
+// --- single source of truth for base size etc ---
+const OBSTACLE_DEFS = {
+  // Global “no wheel” cars (wheel under body, slight shake handled by your component)
+  car_blue: { w: 120, h: 100, img1: () => ASSETS.base.wheel, img2: () => ASSETS.base.car_blue, kind: "car_nw" },
+  car_green: { w: 120, h: 100, img1: () => ASSETS.base.wheel, img2: () => ASSETS.base.car_green, kind: "car_nw" },
+  car_purple: { w: 120, h: 100, img1: () => ASSETS.base.wheel, img2: () => ASSETS.base.car_purple, kind: "car_nw" },
+  car_yellow: { w: 120, h: 100, img1: () => ASSETS.base.wheel, img2: () => ASSETS.base.car_yellow, kind: "car_nw" },
+
+  // Signs / static
+  danger_sign: { w: 80, h: 100, img1: () => ASSETS.base.danger_sign, kind: "sign" },
+  stop_sign: { w: 60, h: 100, img1: () => ASSETS.base.stop_sign, kind: "sign" }, // plays wood sound on hit
+  barricade: { w: 100, h: 100, img1: () => ASSETS.base.barricade, kind: "wood" },
+
+  // Sheep special
+  sheep_no_leg: { w: 70, h: 80, img1: () => ASSETS.base.sheep_leg, img2: () => ASSETS.base.sheep_no_leg, kind: "sheep" },
+  sheep_sign: { w: 80, h: 100, img1: () => ASSETS.base.sheep_sign, kind: "sheep_sign" },
+
+  // JP reverse car (comes from horizon to middle)
+  jp_car: { w: 120, h: 100, img1: () => ASSETS.base.car_wheel, img2: () => ASSETS.base.car_jp_no_wheel, kind: "jp_car", startAtBottom: false },
+};
+
+// Country-specific adds (sizes are approximate – adjust as yours)
+const COUNTRY_DEFS = {
+  england: [
+    { key: "eng_sheep_no_leg", w: 70, h: 80, img1: () => ASSETS.country.england.sheep_leg, img2: () => ASSETS.country.england.sheep_no_leg, kind: "sheep" },
+    { key: "eng_sheep_sign", w: 80, h: 100, img1: () => ASSETS.country.england.sheep_sign, kind: "sheep_sign" },
+  ],
+  baguette: [
+    { key: "fr_cone", w: 70, h: 90, img1: () => ASSETS.country.baguette.cone, kind: "static" },
+    { key: "fr_hydrant", w: 90, h: 110, img1: () => ASSETS.country.baguette.hydrant, kind: "static" },
+  ],
+  japan: [
+    { key: "jp_barricade2", w: 100, h: 100, img1: () => ASSETS.country.japan.jp_barricade, kind: "wood" },
+    { key: "jp_vending", w: 100, h: 140, img1: () => ASSETS.country.japan.vending, kind: "static" },
+    { key: "jp_car", ...OBSTACLE_DEFS.jp_car }, // reuse same special
+  ],
+  usa: [
+    { key: "us_garbage", w: 100, h: 100, img1: () => ASSETS.country.usa.garbage, kind: "static" },
+    { key: "us_stop_textsign", w: 60, h: 100, img1: () => ASSETS.country.usa.stop_text_sign, kind: "wood" },
+  ],
+  thailand: [
+    { key: "th_market", w: 140, h: 140, img1: () => ASSETS.country.thailand.market, kind: "static" },
+    { key: "th_tuktuk", w: 120, h: 100, img1: () => ASSETS.country.thailand.tuktuk, kind: "static" },
+    { key: "th_tuktuk_wheel", w: 40, h: 40, img1: () => ASSETS.country.thailand.tuktuk_wheel, kind: "static" },
+  ],
+};
+
+// Build the pool for a given map
+function getActiveObstaclePool(map) {
+  const base = [
+    "car_blue", "car_green", "car_purple", "car_yellow",
+    "danger_sign", "stop_sign", "barricade",
+  ].map(k => ({ key: k, ...OBSTACLE_DEFS[k] }));
+
+  const country = COUNTRY_DEFS[map] || [];
+  return base.concat(country);
 }
-
 
 var backgroundBuildingsLayers = [
   new Image(),
@@ -147,9 +220,8 @@ const controls = {
 
 function setBackgroundLayers(map) {
   for (let i = 0; i < BACKGROUND_LAYERS; i++) {
-    backgroundBuildingsLayers[i].src = `./assets/background/${map}/${map}_${
-      i + 1
-    }.svg`;
+    backgroundBuildingsLayers[i].src = `./assets/background/${map}/${map}_${i + 1
+      }.svg`;
   }
 }
 
@@ -178,133 +250,50 @@ function drawBackgroundLayers(offset = 0) {
   }
 }
 //clock to offset 
-var worldDistance = 0; 
+var worldDistance = 0;
 
 //trees
 var tree_types = [
-    './assets/trees/tree_1.svg', 
-    './assets/trees/tree_2.svg'
+  './assets/trees/tree_1.svg',
+  './assets/trees/tree_2.svg'
 ]
 
-var billboard_types = [
-    './assets/billboards/billboard_1.svg', 
-    './assets/billboards/billboard_2.svg',
-    './assets/billboards/billboard_3.svg',
-    './assets/billboards/billboard_4.svg',
-    './assets/billboards/billboard_5.svg'
-]
-var billboard_ind = 0; 
-
-var sprites = []; 
-var SPAWN_SEQ = 0; 
-const SPRITE_LIMIT = 60; 
+var sprites = [];
+var SPAWN_SEQ = 0;
+const SPRITE_LIMIT = 60;
 var trees = []
-var treeImage = new Image(); 
+var treeImage = new Image();
 treeImage.src = tree_types[0] //default 
 var lastTreeSpawnAt = 0;
 const TREE_SPAWN_GAP = 300; //70 more freq spawning
 const TREE_MAX_DEPTH = 700; //500 smoother scaling
 const TREE_SCROLL = 0.18;
 
-//billboards
-var billboards = []; 
-var billboardImage = new Image(); 
-billboardImage.src = billboard_types[0]; 
-
-var lastBillboardSpawnAt = 0;
-const BILLBOARD_SPAWN_GAP = 5000; //600
-const BILLBOARD_MAX_DEPTH = 2000; //1500
-const BILLBOARD_SCROLL = 0.30
-
-function isGreenSegment(distance){
-    return Math.sin(20 * Math.pow(1 - (distance / (CANVAS_HEIGHT / 2)), 3) + distance * 0.1) > 0;
-}
-
-function spawnBillboard(worldDist){
-    if (isGreenSegment(worldDist)){
-        billboardImage.src = billboard_types[billboard_ind]; 
-        sprites.push({
-            spawnId: ++SPAWN_SEQ, 
-            worldDist,
-            baseWidth: 200,
-            baseHeight: 200,
-            image: billboardImage,
-            color: "transparent",
-            offset: 30,
-            side: Math.random() < 0.5 ? 'left' : 'right',
-            scrollSpeed: BILLBOARD_SCROLL, //parallax
-            maxDepth: BILLBOARD_MAX_DEPTH,
-            scaleRate: 0.85
-        });
-
-        if(billboard_ind == 4) billboard_ind = 0; else billboard_ind += 1;
-
-        console.log("Billboard spawned at ", worldDist); 
-        if(sprites.length > SPRITE_LIMIT) sprites.shift(); 
-    }
+function isGreenSegment(distance) {
+  return Math.sin(20 * Math.pow(1 - (distance / (CANVAS_HEIGHT / 2)), 3) + distance * 0.1) > 0;
 }
 
 
-treeImage.src = tree_types[getRandomBetween(0, 1)]; 
-function spawnSprite(worldDist, img, width, height){
-    if (isGreenSegment(worldDist)){
-        sprites.push({
-            spawnId: ++SPAWN_SEQ, 
-            worldDist,
-            baseWidth: width,
-            baseHeight: height,
-            image: img, 
-            color: "transparent", 
-            side: Math.random() < 0.5 ? 'left' : 'right',
-            offset: getRandomBetween(50, 300), 
-            scrollSpeed: TREE_SCROLL,      // parallax
-            maxDepth: TREE_MAX_DEPTH,
-            scaleRate: 0.80
-        }); 
-        console.log("Tree spawned at ", worldDist); 
-        if(sprites.length > SPRITE_LIMIT) sprites.shift(); 
-    }
-}
 
-function drawBillboards() {
-    var gameCTX = myGameArea.context; 
-    var i = 0;
-    while (i < billboards.length){
-        var b = billboards[i]; 
-        var depth = b.worldDist - distance * BILLBOARD_SCROLL;  //dist from player pos
-        if (depth <= 0) { billboards.splice(i, 1); continue; }
-
-        var p = Math.max(0, Math.min(1, 1 - (depth / BILLBOARD_MAX_DEPTH)));
-        p *= 0.85 //scale rate 
-
-        var screenMiddle = CANVAS_WIDTH / 2 + curvature * 500 * Math.pow((1 - p), 2);
-
-        var screenY = CANVAS_HEIGHT/2 + p * (CANVAS_HEIGHT/2);
-        var scale = Math.max(0.1, 0.2 + (1 - (depth / BILLBOARD_MAX_DEPTH)) * 1.8);
-
-        var bw = b.baseWidth * scale;
-        var bh = b.baseHeight * scale;
-
-        var gap = CANVAS_WIDTH * p + 300;
-        var leftEdge = screenMiddle - gap / 2;
-        var rightEdge = screenMiddle + gap / 2;
-
-        // position left/right of path : 30px offset
-        var x = (b.side === 'left') ? leftEdge - bw - 30 : rightEdge + 30;
-
-        if(b.image && b.image.complete){
-            gameCTX.drawImage(b.image, x, screenY - bh, bw, bh);  
-        } else {
-            gameCTX.fillStyle = b.color; 
-            gameCTX.fillRect(x, screenY - bh, bw, bh); 
-        }
-
-        if (screenY > CANVAS_HEIGHT + 50){
-            billboards.splice(i, 1);
-            continue;
-        }
-        i++; 
-    }
+treeImage.src = tree_types[getRandomBetween(0, 1)];
+function spawnSprite(worldDist, img, width, height) {
+  if (isGreenSegment(worldDist)) {
+    sprites.push({
+      spawnId: ++SPAWN_SEQ,
+      worldDist,
+      baseWidth: width,
+      baseHeight: height,
+      image: img,
+      color: "transparent",
+      side: Math.random() < 0.5 ? 'left' : 'right',
+      offset: getRandomBetween(50, 300),
+      scrollSpeed: TREE_SCROLL,      // parallax
+      maxDepth: TREE_MAX_DEPTH,
+      scaleRate: 0.80
+    });
+    console.log("Tree spawned at ", worldDist);
+    if (sprites.length > SPRITE_LIMIT) sprites.shift();
+  }
 }
 
 function drawEntities() {
@@ -316,7 +305,7 @@ function drawEntities() {
 
     const camDepth = (s.worldDist - worldDistance);       // <-- z-order key
     if (camDepth <= 0) { sprites.splice(i, 1); continue; }
-    const depth = camDepth * s.scrollSpeed; 
+    const depth = camDepth * s.scrollSpeed;
 
     // const depth = (s.worldDist - worldDistance) * s.scrollSpeed; // parallax depth
     // if (depth <= 0) { sprites.splice(i, 1); continue; }
@@ -325,14 +314,14 @@ function drawEntities() {
     p *= s.scaleRate;
 
     const screenMiddle = CANVAS_WIDTH / 2 + curvature * 500 * Math.pow((1 - p), 2);
-    const screenY = CANVAS_HEIGHT/2 + p * (CANVAS_HEIGHT/2);
+    const screenY = CANVAS_HEIGHT / 2 + p * (CANVAS_HEIGHT / 2);
     const scale = Math.max(0.1, 0.2 + (1 - (depth / s.maxDepth)) * 1.8);
 
-    const bw = s.baseWidth  * scale;
+    const bw = s.baseWidth * scale;
     const bh = s.baseHeight * scale;
 
     const gap = CANVAS_WIDTH * p + 300;
-    const leftEdge  = screenMiddle - gap / 2;
+    const leftEdge = screenMiddle - gap / 2;
     const rightEdge = screenMiddle + gap / 2;
 
     const x = (s.side === 'left') ? leftEdge - bw - s.offset : rightEdge + s.offset;
@@ -340,9 +329,9 @@ function drawEntities() {
     renderList.push({ s, x, y: screenY - bh, w: bw, h: bh, camDepth, bottom: (screenY - bh) + bh });
   }
 
-    if (renderList.length > 1) {
-        renderList.sort((a, b) => a.bottom - b.bottom);
-    }
+  if (renderList.length > 1) {
+    renderList.sort((a, b) => a.bottom - b.bottom);
+  }
 
   // paint
   for (const r of renderList) {
@@ -358,7 +347,7 @@ function drawEntities() {
 
 function startGame() {
   setBackgroundLayers(currentMap);
-  playerCar = new component(CAR_W, CAR_H, null, CANVAS_WIDTH / 2, CANVAS_HEIGHT-100, "image");
+  playerCar = new component(CAR_W, CAR_H, null, CANVAS_WIDTH / 2, CANVAS_HEIGHT - 100, "image");
 
   scoreboard = new component("30px", "Consolas", "black", 40, 60, "text");
 
@@ -367,18 +356,16 @@ function startGame() {
   document.getElementById("restart").style.display = "none";
 
   //reset spawn measure
-  sprites.length = 0;             
-  SPAWN_SEQ = 0;                 
-  lastTreeSpawnAt = 0;           
-  lastBillboardSpawnAt = 0;
-  billboard_ind = 0; 
+  sprites.length = 0;
+  SPAWN_SEQ = 0;
+  lastTreeSpawnAt = 0;
 
   myObstacles = [];
   trackLines = [];
   track = [];
   score = 0;
   distance = 0;
-  worldDistance = 0; 
+  worldDistance = 0;
   curvature = 0;
   myGameArea.frameNo = 0;
 
@@ -440,7 +427,7 @@ function component(
       const textMetrics = ctx.measureText(this.text || "");
       const textWidth = textMetrics.width;
       const textHeight = parseInt(this.width, 10);
-      ctx.fillStyle = "rgba(255, 255, 255, 0.8)"; 
+      ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
       ctx.fillRect(this.x - padding, this.y - textHeight, textWidth + padding * 2, textHeight + padding);
 
       ctx.font = this.width + " " + this.height;
@@ -482,7 +469,7 @@ function component(
   };
 
   this.isHitMiddle = function () {
-    const rockbottom = CANVAS_HEIGHT / 2 ;
+    const rockbottom = CANVAS_HEIGHT / 2;
     return this.y < rockbottom;
   };
 
@@ -516,7 +503,7 @@ function component(
 
 
 function getRandomBetween(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
 
@@ -526,50 +513,44 @@ function gameOver() {
   overlay.style.display = "flex";
 }
 
-function spawnObstacle(obstacleIndex, spawnLane) {
+function spawnFromDef(def, spawnLane) {
+  console.log(def);
+  // where to start (top/horizon vs bottom)
+  const startAtBottom = (def.startAtBottom !== false); // default true = start at horizon half
+  let startY = startAtBottom ? (CANVAS_HEIGHT / 2) : CANVAS_HEIGHT;
+  if (def.kind === "jp_car") startY = CANVAS_HEIGHT + 400; // explicit: JP car rises to middle
 
-  var startY = CANVAS_HEIGHT / 2;
-  if (obstacleIndex == 9) startY = CANVAS_HEIGHT;
-  const obs = new component(obstacles_size[obstacleIndex][0], obstacles_size[obstacleIndex][1], null, CANVAS_WIDTH/2, startY, "image", -50 * spawnLane, -300 * spawnLane);
-  
-  if ([0,1,2,3].includes(obstacleIndex)) {
-    obs.image1 = wheel;
-    obs.image2 = obstacles[obstacleIndex];
-  } else if (obstacleIndex == 5) {
-    obs.image1 = sheep_leg;
-    obs.image2 = obstacles[obstacleIndex];
-    sheepSound.play();
-  } else if (obstacleIndex == 9) {
-    obs.image1 = car_wheel;
-    obs.image2 = obstacles[obstacleIndex];
-  }else {
-    obs.image1 = obstacles[obstacleIndex];
-  }
-  
-  obs.baseWidth = obstacles_size[obstacleIndex][0];
-  obs.baseHeight = obstacles_size[obstacleIndex][1];
+  const obs = new component(def.w, def.h, null,
+    CANVAS_WIDTH / 2, startY, "image",
+    -50 * spawnLane, -300 * spawnLane
+  );
+
+  obs.image1 = def.img1 ? def.img1() : null;
+  obs.image2 = def.img2 ? def.img2() : null;
+  obs.baseWidth = def.w;
+  obs.baseHeight = def.h;
+  obs.kind = def.kind;         // for behavior in update/collision
+  obs.key = def.key || def.name;
+
+  // sounds on spawn (sheep bleat)
+  if (obs.kind === "sheep") sheepSound.play();
 
   myObstacles.push(obs);
 }
+
 
 function updateGameArea() {
   for (let i = 0; i < myObstacles.length; i++) {
     if (playerCar.crashWith(myObstacles[i])) {
       jpSound.pause();
-      const hitImage = myObstacles[i].image1;
 
-      switch (true) {
-        case hitImage === sheep_leg:
-          sheepCrashSound.play();
-          break;
-
-        case hitImage === obstacles[8]:
-          woodSound.play();
-          break;
-
-        default:
-          crashSound.play();
-          break;
+      const kind = myObstacles[i].kind;
+      if (kind === "sheep") {
+        sheepCrashSound.play();
+      } else if (kind === "wood") {
+        woodSound.play();
+      } else {
+        crashSound.play();
       }
 
       gameOver();
@@ -577,42 +558,27 @@ function updateGameArea() {
     }
   }
 
+
   myGameArea.clear();
   myGameArea.frameNo += 1;
 
   //update clock
-  worldDistance += speed; 
+  worldDistance += speed;
   distance += speed;
 
   drawBackgroundLayers(curvature * 300);
 
   if (myGameArea.frameNo == 1 || everyinterval(5)) {
-    // distance += speed;
     draw();
   }
 
-  if (myGameArea.frameNo == 1 || everyinterval(10)) {
-        // distance += speed;
-        //billboard
-        if (worldDistance - lastBillboardSpawnAt >= BILLBOARD_SPAWN_GAP){
-            lastBillboardSpawnAt = worldDistance;
-            // spawnBillboard(worldDistance + 100);
-            spawnBillboard(worldDistance + 1.4 * BILLBOARD_MAX_DEPTH / BILLBOARD_SCROLL); 
-
-        }
-        // draw(myGameArea.canvas)
+  if (everyinterval(1)) {
+    if (worldDistance - lastTreeSpawnAt >= TREE_SPAWN_GAP) {
+      lastTreeSpawnAt = worldDistance;
+      // spawnSprite(worldDistance             
+      spawnSprite(worldDistance + 1.4 * (TREE_MAX_DEPTH / TREE_SCROLL), treeImage, 90, 150);
     }
-
-    if (everyinterval(1)) {
-        if (worldDistance - lastTreeSpawnAt >= TREE_SPAWN_GAP){
-            lastTreeSpawnAt = worldDistance;
-            // spawnSprite(worldDistance             
-            spawnSprite(worldDistance + 1.4 * (TREE_MAX_DEPTH / TREE_SCROLL), treeImage, 90, 150);
-
-
-        }
-        // draw(myGameArea.canvas)
-    }
+  }
 
   for (let i = 0; i < trackLines.length; i++) {
     trackLines[i].update();
@@ -624,53 +590,60 @@ function updateGameArea() {
   if (everyinterval(200)) {
     score += 1;
 
-    spawnLane = (Math.random() * 2.1 - 1);
+    const pool = getActiveObstaclePool(currentMap);
 
+    // handle sheep sign wave:
+    let lane = Math.random() * 3.6 - 1.8;
     if (isSheepSign) {
-      for (i = 0; i < 2; i++) {
-        spawnObstacle(5, spawnLane + i * 0.5);
+      for (let i = 0; i < 2; i++) {
+        const sheepDef = pool.find(p => p.kind === "sheep");
+        if (sheepDef) {
+          spawnFromDef(sheepDef, lane + i * 0.5);
+        }
       }
       isSheepSign = false;
     } else {
-      
-      const randomIndex = Math.floor(Math.random() * (obstacles.length - 1));
+      const def = pool[Math.floor(Math.random() * pool.length)];
 
-      if ([4, 6, 7].includes(randomIndex)) {
-        if (currentMap == "japan") {
-          spawnObstacle(9, 0);
+      // roadway signage that should not be in the lane center:
+      if (def.key === "danger_sign" || def.kind === "sign" || def.kind === "sheep_sign") {
+        if (currentMap === "japan" && def.key === "jp_car") {
+          // no-op: jp_car handled below
         } else {
-          spawnLane = Math.random() < 0.5 ? -2.5 : 2.5;
-          if (randomIndex == 6) isSheepSign = true;
-          spawnObstacle(randomIndex, spawnLane);
+          lane = Math.random() < 0.5 ? -2.5 : 2.5;
         }
-      } else {
-        spawnObstacle(randomIndex, spawnLane);
       }
+
+      if (def.kind === "sheep_sign") isSheepSign = true;
+      spawnFromDef(def, lane);
     }
   }
-  
+
+
   // Change Map
   if ((score !== 0 && !hasChangedMap && score % SCORE_PER_MAP_CHANGE === 0) || switch_map) {
     hasChangedMap = true;
     currentMap = mapPool[(mapPool.indexOf(currentMap) + 1) % mapPool.length];
     setBackgroundLayers(currentMap);
+    isSheepSign = false;
     switch_map = false;
   }
   if (score % 5 !== 0) hasChangedMap = false;
 
   // Update Obstacles
+  let maxCarGain = 0;
+
   for (let i = 0; i < myObstacles.length; i++) {
     const o = myObstacles[i];
-    
-    // mark to remove later
-    if ((o.image2 !== obstacles[9] && o.isHitBottom()) ||
-        (o.image2 === obstacles[9] && o.isHitMiddle())) {
+
+    // remove conditions
+    if ((o.kind !== "jp_car" && o.isHitBottom()) ||
+      (o.kind === "jp_car" && o.isHitMiddle())) {
       o.toRemove = true;
-      if (o.image2 === obstacles[9]) jpSound.pause();
+      if (o.kind === "jp_car") jpSound.pause();
       continue;
     }
 
-    // normal update
     const half_height = CANVAS_HEIGHT / 2;
     const perspective = (o.y - half_height) / half_height;
     const middlePointObs = CANVAS_WIDTH / 2 + o.spawnOffset + curvature * 500 * Math.pow(1 - perspective, 2);
@@ -678,11 +651,33 @@ function updateGameArea() {
     let scaleSpeed = 0.1 + (score / 100) * perspective;
     let scaleSize = 0.2 + 1 * perspective;
 
-    if (o.image1 === obstacles[6]) scaleSpeed *= 0.5;
-    if (o.image2 === obstacles[9]) {
-      if (jpSound.paused) jpSound.play();
-      jpSound.volume = Math.max(0, Math.min(1, perspective));
-      scaleSpeed *= -1;
+    // slow down signs if you want (like old code on sheep_sign)
+    if (o.kind === "sheep_sign") scaleSpeed *= 0.5;
+
+    // JP car comes “upwards” then stops at middle, with engine sound volume by distance
+    if (o.kind === "jp_car") {
+      jpSound.play();
+
+      // adjust volume by distance once playing
+      const perspectiveClamped = Math.max(0, Math.min(1, (o.y - CANVAS_HEIGHT / 2) / (CANVAS_HEIGHT / 2)));
+      jpSound.volume = perspectiveClamped;
+
+      scaleSpeed *= -1; // reverse direction (car moves up)
+    }
+
+    if (o.kind === "car_nw") {
+      // silent near horizon, then fade in
+      const startSilence = 0.25;
+      let g = (perspective - startSilence) / (1 - startSilence);
+      g = Math.max(0, Math.min(1, g));     // clamp
+
+      // optional: attenuate if far from center lane
+      const centerX = CANVAS_WIDTH / 2 + o.spawnOffset + curvature * 500 * Math.pow(1 - perspective, 2);
+      const lateral = Math.abs(o.x - centerX);
+      const laneAtten = Math.max(0.3, 1 - lateral / 300);
+
+      const wanted = g * laneAtten * 0.45; // cap overall gain
+      if (wanted > maxCarGain) maxCarGain = wanted;
     }
 
     o.y += speed * scaleSpeed;
@@ -693,13 +688,30 @@ function updateGameArea() {
     o.update();
   }
 
+  if (maxCarGain > 0.02) {
+    if (!carSoundActive) {
+      // start once; catch autoplay errors silently
+      carSound.currentTime = 0;
+      carSound.play().catch(() => { });
+      carSoundActive = true;
+    }
+    // smooth volume to avoid clicks
+    carSound.volume = carSound.volume * 0.8 + maxCarGain * 0.2;
+  } else {
+    // fade out and pause when inaudible
+    carSound.volume = carSound.volume * 0.85;
+    if (carSound.volume < 0.01 && carSoundActive) {
+      carSound.pause();
+      carSoundActive = false;
+    }
+  }
   myObstacles = myObstacles.filter(o => !o.toRemove);
-  
+
   // player movement
   playerCar.move(0);
   playerCar.image1 = car_wheel;
   playerCar.image2 = car_no_wheel;
-  
+
   if (controls.left && playerCar.x > 70) {
     playerCar.move(-1);
     playerCar.image1 = car_right_wheel;
@@ -739,17 +751,17 @@ function draw() {
   trackNumber = 0;
 
   while (trackNumber < track.length && offset <= distance) {
-      offset += track[trackNumber][1];
-      trackNumber++;
+    offset += track[trackNumber][1];
+    trackNumber++;
   }
 
   targetCurvature = track[trackNumber - 1][0];
-  
+
   trackCurveDiff = (targetCurvature - curvature) * 0.01;
   curvature += trackCurveDiff;
 
   for (j = 0; j < CANVAS_HEIGHT / 2; j++) {
-    
+
     rowY = CANVAS_HEIGHT / 2 + j;
     perspective = j / (CANVAS_HEIGHT / 2);
     middlePoint = CANVAS_WIDTH / 2 + curvature * 500 * Math.pow((1 - perspective), 2);
@@ -757,19 +769,19 @@ function draw() {
     gap = CANVAS_WIDTH * perspective + 200;
 
     if (j == 0) {
-        middleValue = middlePoint;
+      middleValue = middlePoint;
     }
 
     grass_color = Math.sin(20 * Math.pow(1 - perspective, 3) + distance * 0.006) > 0 ? "green" : "darkgreen";
 
-    trackLines.push(new component(gap, 5, "grey", middlePoint - gap/2, rowY));
+    trackLines.push(new component(gap, 5, "grey", middlePoint - gap / 2, rowY));
 
-    trackLines.push(new component(middlePoint - gap/2, 5, grass_color, 0, rowY));
+    trackLines.push(new component(middlePoint - gap / 2, 5, grass_color, 0, rowY));
 
-    trackLines.push(new component(CANVAS_WIDTH - middlePoint + gap/2, 5, grass_color, middlePoint + gap/2, rowY));
+    trackLines.push(new component(CANVAS_WIDTH - middlePoint + gap / 2, 5, grass_color, middlePoint + gap / 2, rowY));
 
-    trackLines.push(new component(15, 5, "white", middlePoint - gap/2, rowY));
-    trackLines.push(new component(15, 5, "white", middlePoint + gap/2, rowY));
+    trackLines.push(new component(15, 5, "white", middlePoint - gap / 2, rowY));
+    trackLines.push(new component(15, 5, "white", middlePoint + gap / 2, rowY));
 
 
     dashPeriod = 100;
@@ -777,8 +789,8 @@ function draw() {
     if (isDash) {
       trackLines.push(new component(4, 5, "white", middlePoint - 2, rowY));
     }
-  } 
-  
+  }
+
   if (distance > offset) distance = 0;
 }
 
