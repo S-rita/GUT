@@ -3,7 +3,7 @@
 const CANVAS_WIDTH = 960;
 const CANVAS_HEIGHT = 600;
 const BACKGROUND_LAYERS = 4;
-const SCORE_PER_MAP_CHANGE = 5;
+const SCORE_PER_MAP_CHANGE = 25;
 const CAR_W = 120;
 const CAR_H = 100;
 
@@ -16,12 +16,13 @@ const car_left_wheel = new Image();
 const car_left_no_wheel = new Image();
 const car_right_wheel = new Image();
 const car_right_no_wheel = new Image();
-car_wheel.src = "assets/car_wheel.svg";
-car_no_wheel.src = "assets/car_no_wheel.svg";
-car_left_wheel.src = "assets/car_left_wheel.svg";
-car_left_no_wheel.src = "assets/car_left_no_wheel.svg";
-car_right_wheel.src = "assets/car_right_wheel.svg";
-car_right_no_wheel.src = "assets/car_right_no_wheel.svg";
+
+car_wheel.src = "assets/car/car_wheel.svg";
+car_no_wheel.src = "assets/car/car_no_wheel.svg";
+car_left_wheel.src = "assets/car/car_left_wheel.svg";
+car_left_no_wheel.src = "assets/car/car_left_no_wheel.svg";
+car_right_wheel.src = "assets/car/car_right_wheel.svg";
+car_right_no_wheel.src = "assets/car/car_right_no_wheel.svg";
 
 var playerCar;
 var myObstacles = [];
@@ -34,6 +35,7 @@ var mapPool = [
   "japan",
   // "bangkok"
 ];
+var switch_map = false;
 var currentMap = mapPool[0];
 var score = 0;
 var hasChangedMap = false;
@@ -248,7 +250,7 @@ function drawEntities() {
 
 function startGame() {
   setBackgroundLayers(currentMap);
-  playerCar = new component(CAR_W, CAR_H, null, CANVAS_WIDTH / 2, CANVAS_HEIGHT - 70, "image");
+  playerCar = new component(CAR_W, CAR_H, null, CANVAS_WIDTH / 2, CANVAS_HEIGHT-80, "image");
 
   scoreboard = new component("30px", "Consolas", "black", 40, 60, "text");
 
@@ -314,6 +316,12 @@ function component(
   this.update = function () {
     const ctx = myGameArea.context;
     if (this.type === "text") {
+      const padding = 5;
+      const textMetrics = ctx.measureText(this.text || "");
+      const textWidth = textMetrics.width;
+      const textHeight = parseInt(this.width, 10); // width holds font size like "30px"
+      ctx.fillStyle = "rgba(255, 255, 255, 0.8)"; 
+      ctx.fillRect(this.x - padding, this.y - textHeight, textWidth + padding * 2, textHeight + padding);
 
       ctx.font = this.width + " " + this.height;
       ctx.fillStyle = color;
@@ -422,10 +430,11 @@ function updateGameArea() {
   // background shift
   drawBackgroundLayers(curvature * 300);
 
-  if (score !== 0 && !hasChangedMap && score % SCORE_PER_MAP_CHANGE === 0) {
+  if ((score !== 0 && !hasChangedMap && score % SCORE_PER_MAP_CHANGE === 0) || switch_map) {
     hasChangedMap = true;
     currentMap = mapPool[(mapPool.indexOf(currentMap) + 1) % mapPool.length];
     setBackgroundLayers(currentMap);
+    switch_map = false;
   }
   if (score % 5 !== 0) hasChangedMap = false;
 
@@ -540,11 +549,12 @@ function draw() {
 }
 
 document.addEventListener("keydown", (e) => {
-  if (e.code === "KeyA") controls.left = true;
-  if (e.code === "KeyD") controls.right = true;
+  if (e.code === "KeyA" || e.code === "ArrowLeft") controls.left = true;
+  if (e.code === "KeyD" || e.code === "ArrowRight") controls.right = true;
+  if (e.code === "ShiftLeft") switch_map = true;
 });
 
 document.addEventListener("keyup", (e) => {
-  if (e.code === "KeyA") controls.left = false;
-  if (e.code === "KeyD") controls.right = false;
+  if (e.code === "KeyA" || e.code === "ArrowLeft") controls.left = false;
+  if (e.code === "KeyD" || e.code === "ArrowRight") controls.right = false;
 });

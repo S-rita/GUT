@@ -2,68 +2,120 @@
 <html>
 
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background-color: #f1f1f1;
+      font-family: sans-serif;
+    }
 
-        body {
-            margin: 0;
-            height: 100vh;
-            display: flex;
-        }
+    h1 {
+      margin: 20px 0 10px 0;
+      color: #333;
+      font-size: 50px;
+      text-align: center;
+      font-family: "halcom,system-ui,-apple-system,Segoe UI,Roboto,Helvetica Neue,Arial,Noto Sans,Liberation Sans,sans-serif,Apple Color Emoji,Segoe UI Emoji,Segoe UI Symbol,Noto Color Emoji";
+    }
 
-        .hidden {
-            display: none;
-        }
+    #game-container {
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-top: 50px;
+      margin-bottom: 50px;
+    }
 
-        #game-container {
-            margin: auto;
-            position: relative;
-        }
+    #restart {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.6);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
 
-        #restart {
-            position: absolute; 
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color:  rgba(0, 0, 0, 0.6);;
-            display: none;
-            
-        }
+    canvas {
+      display: block;
+      border: 1px solid #d3d3d3;
+      background-color: #f1f1f1;
+    }
 
-        canvas {
-            display: flex;
-            border: 1px solid #d3d3d3;
-            background-color: #f1f1f1;
-        }
+    button {
+      background-color: transparent;
+      border: none;
+      cursor: pointer;
+      outline: none;
+    }
 
-        button {
-            background-color: transparent;
-            background-repeat: no-repeat;
-            border: none;
-            cursor: pointer;
-            overflow: hidden;
-            outline: none;
-        }
+    .return {
+        background-color: #009ffd;
+        font-size: 20px;
+        color: white;
+        width: 300px;
+        height: 60px;
+        border-radius: 30px;
+        margin: 20px 0;
+        transition: 0.3s;
+    }
 
-        .restart-button {
-            width: 100px;
-            height: 100px;
-        }
+    .return:hover {
+        background-color: white;
+        color: #009ffd;
+        border: 1px solid #009ffd;
+    }
 
-    </style>
-    
-    <script src="main.js"></script>
+    .restart-button {
+      width: 100px;
+      height: 100px;
+    }
+
+    .title-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        margin: 20px 0;
+    }
+
+    .text-deco {
+        flex-grow: 1;
+        height: 1px;
+        background-color: orange;
+        border-radius: 2px;
+        min-width: 100px;
+    }
+
+  </style>
+  <script src="main.js"></script>
 </head>
+
 <body onload="startGame()">
+    <div class="title-container">
+        <span class="text-deco"></span>
+        <span class="title-text">Error 404</span>
+        <span class="text-deco"></span>
+    </div>
+    <h1>Sorry, we can’t find that page</h1>
+
     <div id="game-container">
-        <div id="restart">
-            <button onclick="startGame()" style="margin: auto; opacity: 1;">
-                <img src="./assets/interface/restart.png" class="restart-button">
-            </button>
+        <div id="restart" class="hidden">
+        <button onclick="startGame()">
+            <img src="./assets/interface/restart.png" class="restart-button" />
+        </button>
         </div>
     </div>
 
+    <button class="return">Return to Homepage →</button>
 </body>
 
 </html>
