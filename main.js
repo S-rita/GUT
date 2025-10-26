@@ -1,4 +1,4 @@
-//fucking important = delete sprite after add new one (first in first out)
+// important => delete sprite after add new one (first in first out)
 
 const CANVAS_WIDTH = 960;
 const CANVAS_HEIGHT = 600;
@@ -301,7 +301,7 @@ function drawEntities() {
         renderList.sort((a, b) => a.bottom - b.bottom);
     }
 
-  // Paint
+  // paint
   for (const r of renderList) {
     const s = r.s;
     if (s.image && s.image.complete) {
@@ -654,7 +654,7 @@ function updateGameArea() {
     myObstacles[i].update();
   }
   
-  // Player movement
+  // player movement
   playerCar.move(0);
   playerCar.image1 = car_wheel;
   playerCar.image2 = car_no_wheel;
