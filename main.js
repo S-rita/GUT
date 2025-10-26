@@ -90,6 +90,7 @@ function spawnSprite(worldDist, img, width, height){
     }
 }
 
+
 function drawBillboards() {
     var gameCTX = myGameArea.context; 
     var i = 0;
