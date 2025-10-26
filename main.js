@@ -344,6 +344,7 @@ function drawEntities() {
   }
 }
 
+
 function startGame() {
   setBackgroundLayers(currentMap);
   playerCar = new component(CAR_W, CAR_H, null, CANVAS_WIDTH / 2, CANVAS_HEIGHT - 100, "image");
