@@ -98,6 +98,15 @@ var tree_types = [
     './assets/tree_2.svg'
 ]
 
+var billboard_types = [
+    './billboards/billboard_1.svg', 
+    './billboards/billboard_2.svg',
+    './billboards/billboard_3.svg',
+    './billboards/billboard_4.svg',
+    './billboards/billboard_5.svg'
+]
+var billboard_ind = 0; 
+
 var sprites = []; 
 var SPAWN_SEQ = 0; 
 const SPRITE_LIMIT = 60; 
