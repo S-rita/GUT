@@ -1,5 +1,7 @@
+//fucking important = delete sprite after add new one (first in first out)
+
 const CANVAS_WIDTH = 960;
-const CANVAS_HEIGHT = 540;
+const CANVAS_HEIGHT = 600;
 const BACKGROUND_LAYERS = 4;
 const SCORE_PER_MAP_CHANGE = 25;
 const CAR_W = 120;
@@ -84,6 +86,164 @@ function drawBackgroundLayers(offset = 0) {
         CANVAS_WIDTH,
         imgHeight
       );
+    }
+  }
+}
+//trees
+var tree_types = [
+    './assets/tree_1.svg', 
+    './assets/tree_2.svg'
+]
+
+var sprites = []; 
+var SPAWN_SEQ = 0; 
+const SPRITE_LIMIT = 60; 
+
+var trees = []
+var treeImage = new Image(); 
+treeImage.src = './assets/tree_1.svg'; //default 
+var lastTreeSpawnAt = 0;
+const TREE_SPAWN_GAP = 70; //70 more freq spawning
+const TREE_MAX_DEPTH = 500; //500 smoother scaling
+const TREE_SCROLL = 0.35;
+
+//billboards
+var billboards = []; 
+var billboardImage = new Image(); 
+billboardImage.src = './assets/billboard_1.svg'; 
+
+var lastBillboardSpawnAt = 0;
+const BILLBOARD_SPAWN_GAP = 600; //600
+const BILLBOARD_MAX_DEPTH = 500; //1500
+const BILLBOARD_SCROLL = 0.55
+
+function isGreenSegment(distance){
+    return Math.sin(20 * Math.pow(1 - (distance / (myGameArea.canvas.height / 2)), 3) + distance * 0.1) > 0;
+}
+
+function spawnBillboard(worldDist){
+    if (isGreenSegment(worldDist)){
+        sprites.push({
+            spawnId: ++SPAWN_SEQ, 
+            worldDist,
+            baseWidth: 200,
+            baseHeight: 200,
+            image: billboardImage,
+            color: "transparent",
+            offset: 30,
+            side: Math.random() < 0.5 ? 'left' : 'right',
+            scrollSpeed: BILLBOARD_SCROLL, //parallax
+            maxDepth: BILLBOARD_MAX_DEPTH,
+            scaleRate: 0.85
+        });
+        console.log("Billboard spawned at ", worldDist); 
+        if(sprites.length > SPRITE_LIMIT) sprites.shift(); 
+    }
+}
+
+function spawnSprite(worldDist, img, width, height){
+    if (isGreenSegment(worldDist)){
+        sprites.push({
+            spawnId: ++SPAWN_SEQ, 
+            worldDist,
+            baseWidth: width,
+            baseHeight: height,
+            image: img, 
+            color: "transparent", 
+            side: Math.random() < 0.5 ? 'left' : 'right',
+            offset: getRandomBetween(50, 300), 
+            scrollSpeed: TREE_SCROLL,      // parallax
+            maxDepth: TREE_MAX_DEPTH,
+            scaleRate: 0.80
+        }); 
+        console.log("Tree spawned at ", worldDist); 
+        if(sprites.length > SPRITE_LIMIT) sprites.shift(); 
+    }
+}
+
+
+function drawBillboards() {
+    var gameCTX = myGameArea.context; 
+    var i = 0;
+    while (i < billboards.length){
+        var b = billboards[i]; 
+        var depth = b.worldDist - distance * BILLBOARD_SCROLL;  //dist from player pos
+        if (depth <= 0) { billboards.splice(i, 1); continue; }
+
+        var p = Math.max(0, Math.min(1, 1 - (depth / BILLBOARD_MAX_DEPTH)));
+        p *= 0.85 //scale rate 
+
+        var screenMiddle = myGameArea.canvas.width / 2 + curvature * 500 * Math.pow((1 - p), 2);
+
+        var screenY = myGameArea.canvas.height/2 + p * (myGameArea.canvas.height/2);
+        var scale = Math.max(0.1, 0.2 + (1 - (depth / BILLBOARD_MAX_DEPTH)) * 1.8);
+
+        var bw = b.baseWidth * scale;
+        var bh = b.baseHeight * scale;
+
+        var gap = canvas_width * p + 300;
+        var leftEdge = screenMiddle - gap / 2;
+        var rightEdge = screenMiddle + gap / 2;
+
+        // position left/right of path : 30px offset
+        var x = (b.side === 'left') ? leftEdge - bw - 30 : rightEdge + 30;
+
+        if(b.image && b.image.complete){
+            gameCTX.drawImage(b.image, x, screenY - bh, bw, bh);  
+        } else {
+            gameCTX.fillStyle = b.color; 
+            gameCTX.fillRect(x, screenY - bh, bw, bh); 
+        }
+
+        if (screenY > myGameArea.canvas.height + 50){
+            billboards.splice(i, 1);
+            continue;
+        }
+        i++; 
+    }
+}
+
+function drawEntities() {
+  const ctx = myGameArea.context;
+  const renderList = [];
+
+  for (let i = sprites.length - 1; i >= 0; i--) {
+    const s = sprites[i];
+
+    const depth = s.worldDist - distance * s.scrollSpeed; // parallax depth
+    if (depth <= 0) { sprites.splice(i, 1); continue; }
+
+    let p = Math.max(0, Math.min(1, 1 - (depth / s.maxDepth)));
+    p *= s.scaleRate;
+
+    const screenMiddle = myGameArea.canvas.width / 2 + curvature * 500 * Math.pow((1 - p), 2);
+    const screenY = myGameArea.canvas.height/2 + p * (myGameArea.canvas.height/2);
+    const scale = Math.max(0.1, 0.2 + (1 - (depth / s.maxDepth)) * 1.8);
+
+    const bw = s.baseWidth  * scale;
+    const bh = s.baseHeight * scale;
+
+    const gap = canvas_width * p + 300;
+    const leftEdge  = screenMiddle - gap / 2;
+    const rightEdge = screenMiddle + gap / 2;
+
+    const x = (s.side === 'left') ? leftEdge - bw - s.offset : rightEdge + s.offset;
+
+    renderList.push({ s, x, y: screenY - bh, w: bw, h: bh, depth });
+  }
+
+    if (renderList.length > 1) {
+        renderList.sort((a, b) => b.depth - a.depth);
+    }
+
+  // Paint
+  for (const r of renderList) {
+    const s = r.s;
+    if (s.image && s.image.complete) {
+      ctx.drawImage(s.image, r.x, r.y, r.w, r.h);
+    } else {
+      ctx.fillStyle = s.color || 'transparent';
+      ctx.fillRect(r.x, r.y, r.w, r.h);
     }
   }
 }
@@ -299,7 +459,6 @@ function updateGameArea() {
     scale = 0.2 + 1 * perspective;
     myObstacles[i].width = CAR_W * scale;
     myObstacles[i].height = CAR_H * scale;
-
     myObstacles[i].update();
   }
   
