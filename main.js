@@ -1,4 +1,3 @@
-// important => delete sprite after add new one (first in first out)
 
 const CANVAS_WIDTH = 960;
 const CANVAS_HEIGHT = 600;
@@ -20,6 +19,29 @@ const woodSound = new Audio("assets/wood.mp3");
 woodSound.volume = 0.2;
 
 const jpSound = new Audio("assets/jp.mp3");
+
+var playerCar;
+var myObstacles = [];
+var trackLines = [];
+var track = [];
+var scoreboard;
+var mapPool = [
+  "england",
+  "baguette",
+  "japan",
+  "usa",
+  "bangkok"
+];
+var switch_map = false;
+var currentMap = mapPool[0];
+var score = 0;
+var hasChangedMap = false;
+var distance = 0;
+var middlePoint = 0;
+var speed = 8;
+var curvature = 0;
+var isSheepSign = 0;
+var spawnspawnLane = 0;
 
 // car
 const car_wheel = new Image();
@@ -75,28 +97,40 @@ for (let i = 0; i < obstacleFiles.length; i++) {
   obstacles.push(img);
 }
 
-var playerCar;
-var myObstacles = [];
-var trackLines = [];
-var track = [];
-var scoreboard;
-var mapPool = [
-  "england",
-  "baguette",
-  "japan",
-  "usa",
-  "bangkok"
-];
-var switch_map = false;
-var currentMap = mapPool[0];
-var score = 0;
-var hasChangedMap = false;
-var distance = 0;
-var middlePoint = 0;
-var speed = 8;
-var curvature = 0;
-var isSheepSign = 0;
-var spawnspawnLane = 0;
+const countryObstacles = {};
+
+for (const country of mapPool) {
+
+  const folderName = `assets/obstacles_${country}/`;
+
+  let obstacleFiles = [];
+  switch (country) {
+    case "england":
+      obstacleFiles = ["sheep_leg.svg", "sheep_no_leg.svg", "sheep_sign.svg"];
+      break;
+    case "baguette":
+      obstacleFiles = ["cone.svg", "hydrant.svg"];
+      break;
+    case "japan":
+      obstacleFiles = ["jp_barricade.svg", "vending.svg"];
+      break;
+    case "usa":
+      obstacleFiles = ["garbage.svg", "stop_text_sign.svg"];
+      break;
+    case "thailand":
+      obstacleFiles = ["market.svg", "tuktuk.svg", "tuktuk_wheel.svg"];
+      break;
+    default:
+      obstacleFiles = [];
+  }
+
+  countryObstacles[country] = obstacleFiles.map(file => {
+    const img = new Image();
+    img.src = `${folderName}${file}`;
+    return img;
+  });
+}
+
 
 var backgroundBuildingsLayers = [
   new Image(),
@@ -148,16 +182,16 @@ var worldDistance = 0;
 
 //trees
 var tree_types = [
-    './assets/tree_1.svg', 
-    './assets/tree_2.svg'
+    './assets/trees/tree_1.svg', 
+    './assets/trees/tree_2.svg'
 ]
 
 var billboard_types = [
-    './billboards/billboard_1.svg', 
-    './billboards/billboard_2.svg',
-    './billboards/billboard_3.svg',
-    './billboards/billboard_4.svg',
-    './billboards/billboard_5.svg'
+    './assets/billboards/billboard_1.svg', 
+    './assets/billboards/billboard_2.svg',
+    './assets/billboards/billboard_3.svg',
+    './assets/billboards/billboard_4.svg',
+    './assets/billboards/billboard_5.svg'
 ]
 var billboard_ind = 0; 
 
@@ -166,7 +200,7 @@ var SPAWN_SEQ = 0;
 const SPRITE_LIMIT = 60; 
 var trees = []
 var treeImage = new Image(); 
-treeImage.src = './assets/tree_1.svg'; //default 
+treeImage.src = tree_types[0] //default 
 var lastTreeSpawnAt = 0;
 const TREE_SPAWN_GAP = 300; //70 more freq spawning
 const TREE_MAX_DEPTH = 700; //500 smoother scaling
@@ -175,7 +209,7 @@ const TREE_SCROLL = 0.18;
 //billboards
 var billboards = []; 
 var billboardImage = new Image(); 
-billboardImage.src = './assets/billboard_1.svg'; 
+billboardImage.src = billboard_types[0]; 
 
 var lastBillboardSpawnAt = 0;
 const BILLBOARD_SPAWN_GAP = 5000; //600
@@ -188,6 +222,7 @@ function isGreenSegment(distance){
 
 function spawnBillboard(worldDist){
     if (isGreenSegment(worldDist)){
+        billboardImage.src = billboard_types[billboard_ind]; 
         sprites.push({
             spawnId: ++SPAWN_SEQ, 
             worldDist,
@@ -201,11 +236,16 @@ function spawnBillboard(worldDist){
             maxDepth: BILLBOARD_MAX_DEPTH,
             scaleRate: 0.85
         });
+
+        if(billboard_ind == 4) billboard_ind = 0; else billboard_ind += 1;
+
         console.log("Billboard spawned at ", worldDist); 
         if(sprites.length > SPRITE_LIMIT) sprites.shift(); 
     }
 }
 
+
+treeImage.src = tree_types[getRandomBetween(0, 1)]; 
 function spawnSprite(worldDist, img, width, height){
     if (isGreenSegment(worldDist)){
         sprites.push({
@@ -225,7 +265,6 @@ function spawnSprite(worldDist, img, width, height){
         if(sprites.length > SPRITE_LIMIT) sprites.shift(); 
     }
 }
-
 
 function drawBillboards() {
     var gameCTX = myGameArea.context; 
@@ -332,6 +371,7 @@ function startGame() {
   SPAWN_SEQ = 0;                 
   lastTreeSpawnAt = 0;           
   lastBillboardSpawnAt = 0;
+  billboard_ind = 0; 
 
   myObstacles = [];
   trackLines = [];
@@ -565,7 +605,7 @@ function updateGameArea() {
     if (everyinterval(1)) {
         if (worldDistance - lastTreeSpawnAt >= TREE_SPAWN_GAP){
             lastTreeSpawnAt = worldDistance;
-            // spawnSprite(worldDistance + 500, treeImage, 90, 150);
+            // spawnSprite(worldDistance             
             spawnSprite(worldDistance + 1.4 * (TREE_MAX_DEPTH / TREE_SCROLL), treeImage, 90, 150);
 
 
@@ -592,8 +632,8 @@ function updateGameArea() {
       isSheepSign = false;
     } else {
       
-      const randomIndex = Math.floor(Math.random() * obstacles.length - 1);
-    
+      const randomIndex = Math.floor(Math.random() * (obstacles.length + 10));
+
       if ([4, 6, 7].includes(randomIndex)) {
         if (currentMap == "japan") {
           spawnObstacle(9, 0);
