@@ -181,7 +181,7 @@ function drawBillboards() {
         var bw = b.baseWidth * scale;
         var bh = b.baseHeight * scale;
 
-        var gap = canvas_width * p + 300;
+        var gap = CANVAS_WIDTH * p + 300;
         var leftEdge = screenMiddle - gap / 2;
         var rightEdge = screenMiddle + gap / 2;
 
@@ -223,7 +223,7 @@ function drawEntities() {
     const bw = s.baseWidth  * scale;
     const bh = s.baseHeight * scale;
 
-    const gap = canvas_width * p + 300;
+    const gap = CANVAS_WIDTH * p + 300;
     const leftEdge  = screenMiddle - gap / 2;
     const rightEdge = screenMiddle + gap / 2;
 
@@ -389,6 +389,12 @@ function component(
   };
 }
 
+
+function getRandomBetween(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+
 function gameOver() {
   if (myGameArea.interval) clearInterval(myGameArea.interval);
 
@@ -408,14 +414,36 @@ function updateGameArea() {
   myGameArea.clear();
   myGameArea.frameNo += 1;
 
+  drawBackgroundLayers(curvature * 300);
+
   if (myGameArea.frameNo == 1 || everyinterval(5)) {
     distance += speed;
     draw();
   }
 
+  if (myGameArea.frameNo == 1 || everyinterval(10)) {
+        distance += speed;
+        //billboard
+        if (distance - lastBillboardSpawnAt >= BILLBOARD_SPAWN_GAP){
+            lastBillboardSpawnAt = distance;
+            spawnBillboard(distance + 500);
+        }
+        draw(myGameArea.canvas)
+    }
+
+    if (everyinterval(1)) {
+        if (distance - lastTreeSpawnAt >= TREE_SPAWN_GAP){
+            lastTreeSpawnAt = distance;
+            spawnSprite(distance + 500, treeImage, 90, 150);
+        }
+        draw(myGameArea.canvas)
+    }
+
   for (let i = 0; i < trackLines.length; i++) {
     trackLines[i].update();
   }
+
+  drawEntities();
 
   if (everyinterval(200)) {
     score += 1;
@@ -427,8 +455,11 @@ function updateGameArea() {
     obs.image2 = car_no_wheel;
     myObstacles.push(obs);
   }
+
+    
+
   // background shift
-  drawBackgroundLayers(curvature * 300);
+//   drawBackgroundLayers(curvature * 300);
 
   if ((score !== 0 && !hasChangedMap && score % SCORE_PER_MAP_CHANGE === 0) || switch_map) {
     hasChangedMap = true;
