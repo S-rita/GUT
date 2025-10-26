@@ -1,23 +1,92 @@
 //fucking important = delete sprite after add new one (first in first out)
 
-const canvas_width = 960;
-const canvas_height = 700;
-var myGamePiece;
+const CANVAS_WIDTH = 960;
+const CANVAS_HEIGHT = 600;
+const BACKGROUND_LAYERS = 4;
+const SCORE_PER_MAP_CHANGE = 5;
+const CAR_W = 120;
+const CAR_H = 100;
+
+const crashSound = new Audio("assets/boing.mp3");
+crashSound.volume = 0.5;
+
+const car_wheel = new Image();
+const car_no_wheel = new Image();
+const car_left_wheel = new Image();
+const car_left_no_wheel = new Image();
+const car_right_wheel = new Image();
+const car_right_no_wheel = new Image();
+car_wheel.src = "assets/car_wheel.svg";
+car_no_wheel.src = "assets/car_no_wheel.svg";
+car_left_wheel.src = "assets/car_left_wheel.svg";
+car_left_no_wheel.src = "assets/car_left_no_wheel.svg";
+car_right_wheel.src = "assets/car_right_wheel.svg";
+car_right_no_wheel.src = "assets/car_right_no_wheel.svg";
+
+var playerCar;
 var myObstacles = [];
 var trackLines = [];
 var track = [];
 var scoreboard;
+var mapPool = [
+  "england",
+  "baguette",
+  "japan",
+  // "bangkok"
+];
+var currentMap = mapPool[0];
 var score = 0;
+var hasChangedMap = false;
 var distance = 0;
 var middlePoint = 0;
 var speed = 10;
 var curvature = 0;
+
+var backgroundBuildingsLayers = [
+  new Image(),
+  new Image(),
+  new Image(),
+  new Image(),
+];
 
 const controls = {
   left: false,
   right: false,
 };
 
+
+function setBackgroundLayers(map) {
+  for (let i = 0; i < BACKGROUND_LAYERS; i++) {
+    backgroundBuildingsLayers[i].src = `./assets/background/${map}/${map}_${
+      i + 1
+    }.svg`;
+  }
+}
+
+function drawBackgroundLayers(offset = 0) {
+  var ctx = myGameArea.context;
+  for (let i = BACKGROUND_LAYERS - 1; i >= 0; i--) {
+    var img = backgroundBuildingsLayers[i];
+    if (img && img.complete) {
+      var parallaxSpeed = (i + 1) / BACKGROUND_LAYERS;
+      var totalOffset = offset * parallaxSpeed;
+      var wrappedOffset =
+        ((totalOffset % CANVAS_WIDTH) + CANVAS_WIDTH) % CANVAS_WIDTH;
+
+      var imgHeight = (img.height / img.width) * CANVAS_WIDTH;
+      var yPos = CANVAS_HEIGHT / 2 - imgHeight;
+
+      ctx.drawImage(img, wrappedOffset, yPos, CANVAS_WIDTH, imgHeight);
+      ctx.drawImage(
+        img,
+        wrappedOffset - CANVAS_WIDTH,
+        yPos,
+        CANVAS_WIDTH,
+        imgHeight
+      );
+    }
+  }
+}
 //trees
 var tree_types = [
     './assets/tree_1.svg', 
@@ -178,13 +247,28 @@ function drawEntities() {
 }
 
 function startGame() {
-  myGamePiece = new component(30, 30, "red", 270, 540);
-  scoreboard = new component("30px", "Consolas", "black", 280, 40, "text");
-  track.push([0, 100]);
+  setBackgroundLayers(currentMap);
+  playerCar = new component(CAR_W, CAR_H, null, CANVAS_WIDTH / 2, CANVAS_HEIGHT - 70, "image");
+
+  scoreboard = new component("30px", "Consolas", "black", 40, 60, "text");
+
+  sky = new component(CANVAS_WIDTH, CANVAS_HEIGHT / 2, "lightblue", 0, 0);
+
+  document.getElementById("restart").style.display = "none";
+
+  myObstacles = [];
+  trackLines = [];
+  track = [];
+  score = 0;
+  distance = 0;
+  curvature = 0;
+  myGameArea.frameNo = 0;
+
+  track.push([0, 1000]);
   track.push([1, 500]);
   track.push([0, 1000]);
   track.push([-2, 500]);
-  track.push([0, 2000]);
+  track.push([0, 3000]);
   track.push([1, 500]);
   myGameArea.start();
 }
@@ -192,10 +276,10 @@ function startGame() {
 var myGameArea = {
   canvas: document.createElement("canvas"),
   start: function () {
-    this.canvas.width = canvas_width;
-    this.canvas.height = canvas_height;
+    this.canvas.width = CANVAS_WIDTH;
+    this.canvas.height = CANVAS_HEIGHT;
     this.context = this.canvas.getContext("2d");
-    document.body.insertBefore(this.canvas, document.body.childNodes[0]);
+    document.getElementById("game-container").prepend(this.canvas);
     this.frameNo = 0;
     this.interval = setInterval(updateGameArea, 10);
   },
@@ -204,135 +288,192 @@ var myGameArea = {
   },
 };
 
-function component(width, height, color, x, y, spawnOffset=0, laneOffset=0) {
-  this.score = 0;
+function component(
+  width,
+  height,
+  color,
+  x,
+  y,
+  type = null,
+  spawnOffset = 0,
+  laneOffset = 0
+) {
+  this.type = type;
   this.width = width;
   this.height = height;
   this.spawnOffset = spawnOffset;
   this.laneOffset = laneOffset;
   this.speedX = 0;
-  this.speedY = 0;    
   this.x = x;
   this.y = y;
-  this.update = function() {
-      ctx = myGameArea.context;
-      if (this.type == "text") {
-          ctx.font = this.width + " " + this.height;
-          ctx.fillStyle = color;
-          ctx.fillText(this.text, this.x, this.y);
-      } else {
-          ctx.fillStyle = color;
-          ctx.fillRect(this.x, this.y, this.width, this.height);
-      }
+
+  this.image1 = null;
+  this.image2 = null;
+  this.shakeCounter = 0;
+
+  this.update = function () {
+    const ctx = myGameArea.context;
+    if (this.type === "text") {
+
+      ctx.font = this.width + " " + this.height;
+      ctx.fillStyle = color;
+      ctx.fillText(this.text || "", this.x, this.y);
+
+    } else if (this.type === "image") {
+
+      this.shakeCounter += 0.1;
+      const shakeOffset = Math.sin(this.shakeCounter) * 1.5;
+
+      ctx.drawImage(this.image1, this.x - this.width / 2, this.y - this.height / 2, this.width, this.height);
+      ctx.drawImage(this.image2, this.x - this.width / 2, this.y - this.height / 2 + shakeOffset, this.width, this.height);
+
+    } else {
+
+      ctx.fillStyle = color;
+      ctx.fillRect(this.x, this.y, this.width, this.height);
+    }
   }
-  this.newPos = function() {
+
+  this.newPos = function () {
+    this.speedX += this.accelX;
+    this.speedX *= 0.9;
+    const maxSpeed = 8;
+    if (this.speedX > maxSpeed) this.speedX = maxSpeed;
+    if (this.speedX < -maxSpeed) this.speedX = -maxSpeed;
+    if (
+      (this.speedX < 0 && this.x > 90) ||
+      (this.speedX > 0 && this.x < CANVAS_WIDTH - 90)
+    ) {
       this.x += this.speedX;
-      this.y += this.speedY;
-      this.hitBottom();
-  }
-  this.hitBottom = function() {
-      var rockbottom = myGameArea.canvas.height - this.height;
-      if (this.y > rockbottom) {
-          this.y = rockbottom;
-      }
-  }
-  this.move = function(n) {
-      this.x += n;
-  } 
-  // this.crashWith = function(otherobj) {
-  //     var myleft = this.x;
-  //     var myright = this.x + (this.width);
-  //     var mytop = this.y;
-  //     var mybottom = this.y + (this.height);
-  //     var otherleft = otherobj.x;
-  //     var otherright = otherobj.x + (otherobj.width);
-  //     var othertop = otherobj.y;
-  //     var otherbottom = otherobj.y + (otherobj.height);
-  //     var crash = true;
-  //     if ((mybottom < othertop) || (mytop > otherbottom) || (myright < otherleft) || (myleft > otherright)) {
-  //         crash = false;
-  //     }
-  //     return crash;
-  // }
+    }
+  };
+
+  this.isHitBottom = function () {
+    const rockbottom = myGameArea.canvas.height + this.height;
+    return this.y > rockbottom;
+  };
+
+  this.move = function (n) {
+    this.accelX = n;
+  };
+
+  this.crashWith = function (otherobj) {
+    const margin = 30;
+
+    var myleft = this.x + margin;
+    var myright = this.x + this.width;
+    var mytop = this.y + margin;
+    var mybottom = this.y + this.height;
+    var otherleft = otherobj.x + margin;
+    var otherright = otherobj.x + otherobj.width;
+    var othertop = otherobj.y + margin;
+    var otherbottom = otherobj.y + otherobj.height;
+    var crash = true;
+    if (
+      mybottom < othertop ||
+      mytop > otherbottom ||
+      myright < otherleft ||
+      myleft > otherright
+    ) {
+      crash = false;
+    }
+    return crash;
+  };
 }
 
-function getRandomBetween(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
+function gameOver() {
+  if (myGameArea.interval) clearInterval(myGameArea.interval);
+
+  const overlay = document.getElementById("restart");
+  overlay.style.display = "flex";
 }
 
 function updateGameArea() {
-    myGameArea.clear();
-    myGameArea.frameNo += 1;
-
-    // distance += speed; //move world forward every frame
-
-    canvasHeight = myGameArea.canvas.height;
-    canvasWidth = myGameArea.canvas.width;
-
-    if (myGameArea.frameNo == 1 || everyinterval(10)) {
-        distance += speed;
-        //billboard
-        if (distance - lastBillboardSpawnAt >= BILLBOARD_SPAWN_GAP){
-            lastBillboardSpawnAt = distance;
-            spawnBillboard(distance + 500);
-        }
-        draw(myGameArea.canvas)
-    }
-
-    if (everyinterval(1)) {
-        if (distance - lastTreeSpawnAt >= TREE_SPAWN_GAP){
-            lastTreeSpawnAt = distance;
-            spawnSprite(distance + 500, treeImage, 90, 150);
-        }
-        draw(myGameArea.canvas)
-    }
-    
-
-    for (i = 0; i < trackLines.length; i++) {
-        trackLines[i].update();
-    }
-    
-    drawEntities();
-
-    if (everyinterval(200)) {
-        myObstacles.push(new component(30, 30, "red", 270, 240, 0, 0))
-    }
-
-    console.log("curve", curvature);
-    for (let i = 0; i < myObstacles.length; i++) {
-        const halfH = canvasHeight / 2;
-        let perspective = (myObstacles[i].y - halfH) / halfH;
-        
-        const middlePointObs = canvasWidth / 2 + myObstacles[i].spawnOffset + curvature * 500 * Math.pow(1 - perspective, 2);
-
-        myObstacles[i].y += speed * 0.1;
-        const laneDrift = myObstacles[i].laneOffset * (perspective);
-        
-        myObstacles[i].x = middlePointObs + laneDrift;
-        myObstacles[i].update();
-    }
-
-  // player movement
-  if (controls.left) {
-    myGamePiece.move(-5);
+  for (i = 0; i < myObstacles.length; i += 1) {
+      if (playerCar.crashWith(myObstacles[i])) {
+        crashSound.play();
+        gameOver();
+        return;
+      } 
   }
-  if (controls.right) {
-    myGamePiece.move(5);
+
+  myGameArea.clear();
+  myGameArea.frameNo += 1;
+
+  if (myGameArea.frameNo == 1 || everyinterval(5)) {
+    distance += speed;
+    draw();
+  }
+
+  for (let i = 0; i < trackLines.length; i++) {
+    trackLines[i].update();
+  }
+
+  if (everyinterval(200)) {
+    score += 1;
+
+    const lane = (Math.random() * 2 - 1);
+
+    const obs = new component(CAR_W, CAR_H, null, 270, CANVAS_HEIGHT / 2, "image", -50 * lane, -300 * lane);
+    obs.image1 = car_wheel;
+    obs.image2 = car_no_wheel;
+    myObstacles.push(obs);
+  }
+  // background shift
+  drawBackgroundLayers(curvature * 300);
+
+  if (score !== 0 && !hasChangedMap && score % SCORE_PER_MAP_CHANGE === 0) {
+    hasChangedMap = true;
+    currentMap = mapPool[(mapPool.indexOf(currentMap) + 1) % mapPool.length];
+    setBackgroundLayers(currentMap);
+  }
+  if (score % 5 !== 0) hasChangedMap = false;
+
+  for (let i = 0; i < myObstacles.length; i++) {
+    
+    if (myObstacles[i].isHitBottom()) {
+      console.log("delete obstacle");
+      myObstacles.splice(i, 1);
+    }
+
+    half_height = CANVAS_HEIGHT / 2;
+    let perspective = (myObstacles[i].y - half_height) / half_height;
+    
+    const middlePointObs = CANVAS_WIDTH / 2 + myObstacles[i].spawnOffset + curvature * 500 * Math.pow(1 - perspective, 2);
+
+    scaleSpeed = 0.1 + score / 100;
+    myObstacles[i].y += speed * scaleSpeed;
+    const laneDrift = myObstacles[i].laneOffset * perspective;
+
+    myObstacles[i].x = middlePointObs + laneDrift;
+
+    scale = 0.2 + 1 * perspective;
+    myObstacles[i].width = CAR_W * scale;
+    myObstacles[i].height = CAR_H * scale;
+    myObstacles[i].update();
+  }
+  
+  playerCar.move(0);
+  playerCar.image1 = car_wheel;
+  playerCar.image2 = car_no_wheel;
+  
+  if (controls.left && playerCar.x > 70) {
+    playerCar.move(-1);
+    playerCar.image1 = car_right_wheel;
+    playerCar.image2 = car_right_no_wheel;
+  }
+
+  if (controls.right && playerCar.x < CANVAS_WIDTH - 70) {
+    playerCar.move(1);
+    playerCar.image1 = car_left_wheel;
+    playerCar.image2 = car_left_no_wheel;
   }
 
   scoreboard.text = "SCORE: " + score;
   scoreboard.update();
-  myGamePiece.newPos();
-  // myGamePiece.update();
-  myGameArea.canvas
-    .getContext("2d")
-    .drawImage(
-      document.getElementById("car"),
-      myGamePiece.x,
-      530,
-      200,
-      150
-    );
+
+  playerCar.newPos();
+  playerCar.update();
 }
 
 function everyinterval(n) {
@@ -343,52 +484,64 @@ function everyinterval(n) {
 }
 
 function accelerate(n) {
-  myGamePiece.gravity = n;
+  playerCar.gravity = n;
 }
 
-function draw(canvas) {
-    x = canvas.width;
-    y = canvas.height;
-    
-    offset = 0;
-    trackNumber = 0;
+function draw() {
+  offset = 0;
+  trackNumber = 0;
 
-    while (trackNumber < track.length && offset <= distance) {
-        offset += track[trackNumber][1];
-        trackNumber++;
+  trackLines.length = 0;
+  offset = 0;
+  trackNumber = 0;
+
+  while (trackNumber < track.length && offset <= distance) {
+      offset += track[trackNumber][1];
+      trackNumber++;
+  }
+
+  targetCurvature = track[trackNumber - 1][0];
+  
+  trackCurveDiff = (targetCurvature - curvature) * 0.01;
+  curvature += trackCurveDiff;
+
+  for (j = 0; j < CANVAS_HEIGHT / 2; j++) {
+    
+    rowY = CANVAS_HEIGHT / 2 + j;
+    perspective = j / (CANVAS_HEIGHT / 2);
+    middlePoint = CANVAS_WIDTH / 2 + curvature * 500 * Math.pow((1 - perspective), 2);
+
+    gap = CANVAS_WIDTH * perspective + 200;
+
+    if (j == 0) {
+        middleValue = middlePoint;
     }
 
-    targetCurvature = track[trackNumber - 1][0];
-    
-    trackCurveDiff = (targetCurvature - curvature) * 0.01;
-    curvature += trackCurveDiff;
+    grass_color = Math.sin(20 * Math.pow(1 - perspective, 3) + distance * 0.1) > 0 ? "green" : "darkgreen";
 
-    for (j = 0; j < y / 2; j+=5) {
+    trackLines.push(new component(gap, 5, "grey", middlePoint - gap/2, rowY));
 
-        perspective = j / (y / 2);
-        middlePoint = x / 2 + curvature * 500 * Math.pow((1 - perspective), 2);
-    
-        gap = canvas_width * perspective + 300;
+    trackLines.push(new component(middlePoint - gap/2, 5, grass_color, 0, rowY));
 
-        if (j == 0) {
-            middleValue = middlePoint;
-        }
+    trackLines.push(new component(CANVAS_WIDTH - middlePoint + gap/2, 5, grass_color, middlePoint + gap/2, rowY));
 
-        color = Math.sin(20 * Math.pow(1 - perspective, 3) + distance * 0.1) > 0 ? "green" : "darkgreen";
-        trackLines.push(new component(middlePoint - gap/2, 5, color, 0, y/2 + j));
-        trackLines.push(new component(x - middlePoint + gap/2, 5, color, middlePoint + gap/2, y/2 + j));
-    } 
-    while (trackLines.length > y/5) {
-        trackLines.shift();
+    trackLines.push(new component(15, 5, "white", middlePoint - gap/2, rowY));
+    trackLines.push(new component(15, 5, "white", middlePoint + gap/2, rowY));
+
+
+    dashPeriod = 100;
+    isDash = Math.sin(30 * Math.pow(1 - perspective, 1.5) + distance * 0.1) > 0;
+    if (isDash) {
+      trackLines.push(new component(4, 5, "white", middlePoint - 2, rowY));
     }
-    
-    if (distance > offset) distance = 0;
+  } 
+  
+  if (distance > offset) distance = 0;
 }
 
 document.addEventListener("keydown", (e) => {
   if (e.code === "KeyA") controls.left = true;
   if (e.code === "KeyD") controls.right = true;
-  console.log(controls);
 });
 
 document.addEventListener("keyup", (e) => {
