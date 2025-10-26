@@ -185,12 +185,11 @@ const COUNTRY_DEFS = {
   ],
   usa: [
     { key: "us_garbage", w: 100, h: 100, img1: () => ASSETS.country.usa.garbage, kind: "static" },
-    { key: "us_stop_textsign", w: 60, h: 100, img1: () => ASSETS.country.usa.stop_text_sign, kind: "wood" },
+    { key: "us_stop_textsign", w: 60, h: 100, img1: () => ASSETS.country.usa.stop_text_sign, kind: "sign" },
   ],
   thailand: [
     { key: "th_market", w: 140, h: 140, img1: () => ASSETS.country.thailand.market, kind: "static" },
-    { key: "th_tuktuk", w: 120, h: 100, img1: () => ASSETS.country.thailand.tuktuk, kind: "static" },
-    { key: "th_tuktuk_wheel", w: 40, h: 40, img1: () => ASSETS.country.thailand.tuktuk_wheel, kind: "static" },
+    { key: "th_tuktuk", w: 120, h: 120, img1: () => ASSETS.country.thailand.tuktuk_wheel, img2: () => ASSETS.country.thailand.tuktuk, kind: "car_nw" },
   ],
 };
 
