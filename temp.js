@@ -1,4 +1,6 @@
 //fucking important = delete sprite after add new one (first in first out)
+//error: banner + tree movement 
+//spawn different type of tree/ banner
 
 const CANVAS_WIDTH = 960;
 const CANVAS_HEIGHT = 600;
@@ -94,7 +96,7 @@ var tree_types = [
 ]
 
 var sprites = []; 
-var SPAWN_SEQ = 0; 
+const SPAWN_SEQ = 0; 
 const SPRITE_LIMIT = 60; 
 
 var trees = []
@@ -104,6 +106,7 @@ var lastTreeSpawnAt = 0;
 const TREE_SPAWN_GAP = 70; //70 more freq spawning
 const TREE_MAX_DEPTH = 500; //500 smoother scaling
 const TREE_SCROLL = 0.35;
+var worldDistance = 0; 
 
 //billboards
 var billboards = []; 
@@ -159,9 +162,8 @@ function spawnSprite(worldDist, img, width, height){
     }
 }
 
-
 function drawBillboards() {
-    var gameCTX = myGameArea.context; 
+    var gameCTX = myGameArea.context;
     var i = 0;
     while (i < billboards.length){
         var b = billboards[i]; 
@@ -406,6 +408,8 @@ function updateGameArea() {
   myGameArea.clear();
   myGameArea.frameNo += 1;
 
+  worldDistance += speed; 
+
   drawBackgroundLayers(curvature * 300);
 
   if (myGameArea.frameNo == 1 || everyinterval(5)) {
@@ -416,19 +420,19 @@ function updateGameArea() {
   if (myGameArea.frameNo == 1 || everyinterval(10)) {
         distance += speed;
         //billboard
-        if (distance - lastBillboardSpawnAt >= BILLBOARD_SPAWN_GAP){
-            lastBillboardSpawnAt = distance;
-            spawnBillboard(distance + 500);
+        if (worldDistance - lastBillboardSpawnAt >= BILLBOARD_SPAWN_GAP){
+            lastBillboardSpawnAt = worldDistance;
+            spawnBillboard(worldDistance + 500);
         }
-        draw(myGameArea.canvas)
+        // draw(myGameArea.canvas)
     }
 
     if (everyinterval(1)) {
-        if (distance - lastTreeSpawnAt >= TREE_SPAWN_GAP){
-            lastTreeSpawnAt = distance;
-            spawnSprite(distance + 500, treeImage, 90, 150);
+        if (worldDistance - lastTreeSpawnAt >= TREE_SPAWN_GAP){
+            lastTreeSpawnAt = worldDistance;
+            spawnSprite(worldDistance + 500, treeImage, 90, 150);
         }
-        draw(myGameArea.canvas)
+        // draw(myGameArea.canvas)
     }
 
   for (let i = 0; i < trackLines.length; i++) {

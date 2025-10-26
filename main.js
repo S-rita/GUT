@@ -89,6 +89,9 @@ function drawBackgroundLayers(offset = 0) {
     }
   }
 }
+//clock to offset 
+var worldDistance = 0; 
+
 //trees
 var tree_types = [
     './assets/tree_1.svg', 
@@ -98,14 +101,13 @@ var tree_types = [
 var sprites = []; 
 var SPAWN_SEQ = 0; 
 const SPRITE_LIMIT = 60; 
-
 var trees = []
 var treeImage = new Image(); 
 treeImage.src = './assets/tree_1.svg'; //default 
 var lastTreeSpawnAt = 0;
-const TREE_SPAWN_GAP = 70; //70 more freq spawning
-const TREE_MAX_DEPTH = 500; //500 smoother scaling
-const TREE_SCROLL = 0.35;
+const TREE_SPAWN_GAP = 300; //70 more freq spawning
+const TREE_MAX_DEPTH = 700; //500 smoother scaling
+const TREE_SCROLL = 0.18;
 
 //billboards
 var billboards = []; 
@@ -113,9 +115,9 @@ var billboardImage = new Image();
 billboardImage.src = './assets/billboard_1.svg'; 
 
 var lastBillboardSpawnAt = 0;
-const BILLBOARD_SPAWN_GAP = 600; //600
-const BILLBOARD_MAX_DEPTH = 500; //1500
-const BILLBOARD_SCROLL = 0.55
+const BILLBOARD_SPAWN_GAP = 5000; //600
+const BILLBOARD_MAX_DEPTH = 2000; //1500
+const BILLBOARD_SCROLL = 0.30
 
 function isGreenSegment(distance){
     return Math.sin(20 * Math.pow(1 - (distance / (myGameArea.canvas.height / 2)), 3) + distance * 0.1) > 0;
@@ -210,8 +212,12 @@ function drawEntities() {
   for (let i = sprites.length - 1; i >= 0; i--) {
     const s = sprites[i];
 
-    const depth = s.worldDist - distance * s.scrollSpeed; // parallax depth
-    if (depth <= 0) { sprites.splice(i, 1); continue; }
+    const camDepth = (s.worldDist - worldDistance);       // <-- z-order key
+    if (camDepth <= 0) { sprites.splice(i, 1); continue; }
+    const depth = camDepth * s.scrollSpeed; 
+
+    // const depth = (s.worldDist - worldDistance) * s.scrollSpeed; // parallax depth
+    // if (depth <= 0) { sprites.splice(i, 1); continue; }
 
     let p = Math.max(0, Math.min(1, 1 - (depth / s.maxDepth)));
     p *= s.scaleRate;
@@ -229,11 +235,11 @@ function drawEntities() {
 
     const x = (s.side === 'left') ? leftEdge - bw - s.offset : rightEdge + s.offset;
 
-    renderList.push({ s, x, y: screenY - bh, w: bw, h: bh, depth });
+    renderList.push({ s, x, y: screenY - bh, w: bw, h: bh, camDepth, bottom: (screenY - bh) + bh });
   }
 
     if (renderList.length > 1) {
-        renderList.sort((a, b) => b.depth - a.depth);
+        renderList.sort((a, b) => a.bottom - b.bottom);
     }
 
   // Paint
@@ -258,11 +264,18 @@ function startGame() {
 
   document.getElementById("restart").style.display = "none";
 
+  //reset spawn measure
+  sprites.length = 0;             
+  SPAWN_SEQ = 0;                 
+  lastTreeSpawnAt = 0;           
+  lastBillboardSpawnAt = 0;
+
   myObstacles = [];
   trackLines = [];
   track = [];
   score = 0;
   distance = 0;
+  worldDistance = 0; 
   curvature = 0;
   myGameArea.frameNo = 0;
 
@@ -397,7 +410,6 @@ function getRandomBetween(min, max) {
 
 function gameOver() {
   if (myGameArea.interval) clearInterval(myGameArea.interval);
-
   const overlay = document.getElementById("restart");
   overlay.style.display = "flex";
 }
@@ -407,6 +419,7 @@ function updateGameArea() {
       if (playerCar.crashWith(myObstacles[i])) {
         crashSound.play();
         gameOver();
+        sprites.length = 0; 
         return;
       } 
   }
@@ -414,29 +427,38 @@ function updateGameArea() {
   myGameArea.clear();
   myGameArea.frameNo += 1;
 
+  //update clock
+  worldDistance += speed; 
+  distance += speed;
+
   drawBackgroundLayers(curvature * 300);
 
   if (myGameArea.frameNo == 1 || everyinterval(5)) {
-    distance += speed;
+    // distance += speed;
     draw();
   }
 
   if (myGameArea.frameNo == 1 || everyinterval(10)) {
-        distance += speed;
+        // distance += speed;
         //billboard
-        if (distance - lastBillboardSpawnAt >= BILLBOARD_SPAWN_GAP){
-            lastBillboardSpawnAt = distance;
-            spawnBillboard(distance + 500);
+        if (worldDistance - lastBillboardSpawnAt >= BILLBOARD_SPAWN_GAP){
+            lastBillboardSpawnAt = worldDistance;
+            // spawnBillboard(worldDistance + 100);
+            spawnBillboard(worldDistance + 1.4 * BILLBOARD_MAX_DEPTH / BILLBOARD_SCROLL); //spawn position -> more = further from the frame
+
         }
-        draw(myGameArea.canvas)
+        // draw(myGameArea.canvas)
     }
 
     if (everyinterval(1)) {
-        if (distance - lastTreeSpawnAt >= TREE_SPAWN_GAP){
-            lastTreeSpawnAt = distance;
-            spawnSprite(distance + 500, treeImage, 90, 150);
+        if (worldDistance - lastTreeSpawnAt >= TREE_SPAWN_GAP){
+            lastTreeSpawnAt = worldDistance;
+            // spawnSprite(worldDistance + 500, treeImage, 90, 150);
+            spawnSprite(worldDistance + 1.4 * (TREE_MAX_DEPTH / TREE_SCROLL), treeImage, 90, 150);
+
+
         }
-        draw(myGameArea.canvas)
+        // draw(myGameArea.canvas)
     }
 
   for (let i = 0; i < trackLines.length; i++) {
