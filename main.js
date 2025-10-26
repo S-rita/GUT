@@ -10,8 +10,11 @@ const CAR_H = 100;
 const crashSound = new Audio("assets/boing.mp3");
 crashSound.volume = 0.2;
 
-const sheepSound = new Audio("assets/sheep.mp3");
+const sheepSound = new Audio("assets/sheep_normal.mp3");
 sheepSound.volume = 0.2;
+
+const sheepCrashSound = new Audio("assets/sheep.mp3");
+sheepCrashSound.volume = 0.2;
 
 const woodSound = new Audio("assets/wood.mp3");
 woodSound.volume = 0.2;
@@ -81,18 +84,19 @@ var mapPool = [
   "england",
   "baguette",
   "japan",
-  "usa"
-  // "bangkok"
+  "usa",
+  "bangkok"
 ];
 var switch_map = false;
-var currentMap = "japan";
+var currentMap = mapPool[0];
 var score = 0;
 var hasChangedMap = false;
 var distance = 0;
 var middlePoint = 0;
-var speed = 8;
+var speed = 10;
 var curvature = 0;
 var isSheepSign = 0;
+var spawnspawnLane = 0;
 
 var backgroundBuildingsLayers = [
   new Image(),
@@ -348,13 +352,13 @@ function component(
   y,
   type = null,
   spawnOffset = 0,
-  laneOffset = 0
+  spawnLaneOffset = 0
 ) {
   this.type = type;
   this.width = width;
   this.height = height;
   this.spawnOffset = spawnOffset;
-  this.laneOffset = laneOffset;
+  this.spawnLaneOffset = spawnLaneOffset;
   this.speedX = 0;
   this.x = x;
   this.y = y;
@@ -460,11 +464,11 @@ function gameOver() {
   overlay.style.display = "flex";
 }
 
-function spawnObstacle(obstacleIndex, lane) {
+function spawnObstacle(obstacleIndex, spawnLane) {
 
   var startY = CANVAS_HEIGHT / 2;
   if (obstacleIndex == 9) startY = CANVAS_HEIGHT;
-  const obs = new component(obstacles_size[obstacleIndex][0], obstacles_size[obstacleIndex][1], null, CANVAS_WIDTH/2, startY, "image", -50 * lane, -300 * lane);
+  const obs = new component(obstacles_size[obstacleIndex][0], obstacles_size[obstacleIndex][1], null, CANVAS_WIDTH/2, startY, "image", -50 * spawnLane, -300 * spawnLane);
   
   if ([0,1,2,3].includes(obstacleIndex)) {
     obs.image1 = wheel;
@@ -472,6 +476,7 @@ function spawnObstacle(obstacleIndex, lane) {
   } else if (obstacleIndex == 5) {
     obs.image1 = sheep_leg;
     obs.image2 = obstacles[obstacleIndex];
+    sheepSound.play();
   } else if (obstacleIndex == 9) {
     obs.image1 = car_wheel;
     obs.image2 = obstacles[obstacleIndex];
@@ -493,7 +498,7 @@ function updateGameArea() {
 
       switch (true) {
         case hitImage === sheep_leg:
-          sheepSound.play();
+          sheepCrashSound.play();
           break;
 
         case hitImage === obstacles[8]:
@@ -545,28 +550,29 @@ function updateGameArea() {
   if (everyinterval(200)) {
     score += 1;
 
-    var lane = (Math.random() * 2 - 1);
+    spawnLane = (Math.random() * 2.1 - 1);
 
     if (isSheepSign) {
       for (i = 0; i < 2; i++) {
-        spawnObstacle(5, lane + i * 0.5);
+        spawnObstacle(5, spawnLane + i * 0.5);
       }
       isSheepSign = false;
-      return;
-    }
-
-    const randomIndex = Math.floor(Math.random() * obstacles.length - 1);
+    } else {
+      
+      const randomIndex = Math.floor(Math.random() * obstacles.length - 1);
     
-    if ([4, 6, 7].includes(randomIndex)) {
-      if (currentMap == "japan") {
-        spawnObstacle(9, 0);
-        return;
+      if ([4, 6, 7].includes(randomIndex)) {
+        if (currentMap == "japan") {
+          spawnObstacle(9, 0);
+        } else {
+          spawnLane = Math.random() < 0.5 ? -2.5 : 2.5;
+          if (randomIndex == 6) isSheepSign = true;
+          spawnObstacle(randomIndex, spawnLane);
+        }
+      } else {
+        spawnObstacle(randomIndex, spawnLane);
       }
-      lane = Math.random() < 0.5 ? -2.5 : 2.5;
-      if (randomIndex == 6) isSheepSign = true;
     }
-
-    spawnObstacle(randomIndex, lane);
   }
   
   // Change Map
@@ -611,9 +617,9 @@ function updateGameArea() {
     }
 
     myObstacles[i].y += speed * scaleSpeed;
-    const laneDrift = myObstacles[i].laneOffset * perspective;
+    const spawnLaneDrift = myObstacles[i].spawnLaneOffset * perspective;
 
-    myObstacles[i].x = middlePointObs + laneDrift;
+    myObstacles[i].x = middlePointObs + spawnLaneDrift;
 
     myObstacles[i].width = myObstacles[i].baseWidth * scaleSize;
     myObstacles[i].height = myObstacles[i].baseHeight * scaleSize;
